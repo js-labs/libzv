@@ -1,0 +1,3 @@
+[submodule "thd/buffer_set"]
+	path = thd/buffer_set
+	url = https://github.com/js-labs/buffer_set.git
