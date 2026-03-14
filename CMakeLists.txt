@@ -133,8 +133,10 @@ if(BUILD_TESTS)
 
     add_executable(zv_tests ${TEST_SRCS})
     add_executable(benchmarks ${BENCHMARK_SRCS})
+    add_executable(channel_recv_throughput tests/channel_recv_throughput.c tests/helpers.c)
+    add_executable(channel_send_throughput tests/channel_send_throughput.c tests/helpers.c)
 
-    foreach(TARGET benchmarks zv_tests)
+    foreach(TARGET benchmarks channel_recv_throughput channel_send_throughput zv_tests)
         add_dependencies(${TARGET} zv)
         target_link_libraries(${TARGET} zv)
         set_property(TARGET ${TARGET} PROPERTY C_STANDARD 11)

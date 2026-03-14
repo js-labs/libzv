@@ -24,7 +24,12 @@
 #include <errno.h>
 #include <string.h>
 #include <stdint.h>
+
+#if defined(__INTELLISENSE__)
+#define _Atomic
+#else
 #include <stdatomic.h>
+#endif
 
 #if defined(_WIN32)
 #include <ws2ipdef.h>

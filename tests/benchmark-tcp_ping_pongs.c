@@ -17,7 +17,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "zv/atomic.h"
 #include "zv/acceptor.h"
 #include "zv/buffer.h"
 #include "zv/channel.h"
@@ -25,6 +24,12 @@
 #include "zv/os_time.h"
 #include <stdint.h>
 #include <string.h>
+
+#if defined(__INTELLISENSE__)
+#define _Atomic
+#else
+#include <stdatomic.h>
+#endif
 
 #include "tcp_echo_server.h"
 #include "helpers.h"
@@ -44,7 +49,7 @@ struct pinger_s
     struct timeval start_time;
     unsigned int state;
     size_t pongs;
-    size_t * remaining_pingers;
+    _Atomic size_t * remaining_pingers;
 };
 
 
@@ -93,7 +98,7 @@ static void channel_input_handler(zv_channel_t * channel, const void * data, siz
 static void channel_close_handler(zv_channel_t * channel)
 {
     struct pinger_s * pinger = zv_channel_get_extra_data(channel);
-    size_t remaining_pingers = zv_atomic_sub_fetch(pinger->remaining_pingers, 1);
+    size_t remaining_pingers = atomic_fetch_sub(pinger->remaining_pingers, 1) - 1;
     /*
     printf("%s -> %s: connection closed, remaining_pingers=%zu\n",
         zv_channel_get_local_addr_str(channel),

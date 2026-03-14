@@ -1,4 +1,3 @@
-#include "zv/atomic.h"
 #include "zv/buffer.h"
 #include "zv/channel.h"
 #include "zv/os_time.h"
@@ -7,13 +6,19 @@
 #include <inttypes.h>
 #include <string.h>
 
+#if defined(__INTELLISENSE__)
+#define _Atomic
+#else
+#include <stdatomic.h>
+#endif
+
 struct test_s
 {
     size_t sessions;
     size_t messages;
     size_t message_size;
     zv_buffer_cache_t * buffer_cache;
-    size_t sessions_done;
+    _Atomic size_t sessions_done;
 };
 
 static struct test_s * test_create(size_t sessions, size_t messages, size_t message_size)
@@ -51,7 +56,7 @@ static void after_acceptor_stop(zv_acceptor_t * acceptor, void * arg)
 
 static void test_session_done(struct test_s * test, zv_acceptor_t * acceptor)
 {
-    size_t sessions_done = zv_atomic_add_fetch(&test->sessions_done, 1, __ATOMIC_RELAXED);
+    size_t sessions_done = atomic_fetch_add(&test->sessions_done, 1) + 1;
     if (sessions_done == test->sessions)
     {
         test_destroy(test);

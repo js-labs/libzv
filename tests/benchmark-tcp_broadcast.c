@@ -19,12 +19,17 @@
 
 #include "zv/acceptor.h"
 #include "zv/array.h"
-#include "zv/atomic.h"
 #include "zv/buffer.h"
 #include "zv/channel.h"
 #include "zv/loop.h"
 #include "zv/os_time.h"
 #include "zv/stream_defragger.h"
+
+#if defined(__INTELLISENSE__)
+#define _Atomic
+#else
+#include <stdatomic.h>
+#endif
 
 #include <assert.h>
 #include <stdint.h>
@@ -53,7 +58,7 @@ struct test_s
     size_t clients_completed;
     long test_time_us;
     struct client_s * clients;
-    size_t clients_disconnected;
+    _Atomic size_t clients_disconnected;
 
     pthread_mutex_t mutex;
     zv_channel_t ** channels;
@@ -325,7 +330,7 @@ static void channel_close_handler(zv_channel_t * channel)
     );
     struct client_s * client = zv_channel_get_extra_data(channel);
     struct test_s * test = client->test;
-    size_t clients_disconnected = zv_atomic_add_fetch(&test->clients_disconnected, 1, __ATOMIC_RELAXED);
+    size_t clients_disconnected = atomic_fetch_add(&test->clients_disconnected, 1) + 1;
     if (clients_disconnected == test->clients_total)
     {
         zv_loop_t * loop = zv_channel_get_loop(channel);

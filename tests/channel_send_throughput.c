@@ -109,16 +109,28 @@ static void server_thread_func(zv_socket_t accept_socket)
         bytes_received += rc;
     }
 
-    struct timespec ts_end;
-    clock_gettime(CLOCK_MONOTONIC, &ts_end);
+    if (bytes_received < bytes_expected)
+    {
+        fprintf(
+            stderr,
+            "received %zu bytes instead of expected %zu\n",
+            bytes_received,
+            bytes_expected
+        );
+    }
+    else
+    {
+        struct timespec ts_end;
+        clock_gettime(CLOCK_MONOTONIC, &ts_end);
 
-    long elapsed_time_ms = zv_elapsed_time_us(&ts_start, &ts_end) / 1000;
-    printf(
-        "# received %zu bytes in %ld.%.3ld sec\n",
-        bytes_expected,
-        elapsed_time_ms / 1000,
-        elapsed_time_ms % 1000
-    );
+        long elapsed_time_ms = zv_elapsed_time_us(&ts_start, &ts_end) / 1000;
+        printf(
+            "# received %zu bytes in %ld.%.3ld sec\n",
+            bytes_expected,
+            elapsed_time_ms / 1000,
+            elapsed_time_ms % 1000
+        );
+    }
 
     zv_socket_close(sockfd);
     zv_socket_close(accept_socket);
@@ -129,12 +141,36 @@ int main(int argc, const char * argv[])
 {
     in_port_t server_port;
     pthread_t server_thread;
-    int rc = start_sock_server(&server_port, &server_thread, &server_thread_func);
+    int rc;
+
+#if defined(_WIN32)
+    WORD version_requested = MAKEWORD(2, 2);
+    WSADATA wsa_data;
+    rc = WSAStartup(version_requested, &wsa_data);
+    if (rc != 0)
+    {
+        fprintf(stderr, "WSAStartup() failed: %d\n", WSAGetLastError());
+        return -1;
+    }
+
+    if ((HIBYTE(wsa_data.wVersion) != 2) && (LOBYTE(wsa_data.wVersion) != 2))
+    {
+        fprintf(
+            stderr,
+            "unsupported WSA version %hu.%hu\n",
+            HIBYTE(wsa_data.wVersion),
+            LOBYTE(wsa_data.wVersion)
+        );
+        return -1;
+    }
+#endif
+
+    rc = start_sock_server(&server_port, &server_thread, &server_thread_func);
     if (rc == 0)
     {
         printf("server started at port %hu\n", server_port);
 
-        zv_loop_t * loop = create_loop_and_connector(server_port, &after_connect);
+        zv_loop_t* loop = create_loop_and_connector(server_port, &after_connect);
         if (loop)
         {
             zv_loop_run(loop);
@@ -143,5 +179,12 @@ int main(int argc, const char * argv[])
 
         pthread_join(server_thread, NULL);
     }
+    else
+        fprintf(stderr, "start_sock_server() failed\n");
+
+#if defined(_WIN32)
+    WSACleanup();
+#endif
+
     return rc;
 }
