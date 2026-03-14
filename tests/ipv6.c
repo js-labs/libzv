@@ -17,7 +17,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "zv/atomic.h"
 #include "zv/buffer.h"
 #include "zv/connector.h"
 #include "zv/channel.h"
@@ -25,16 +24,16 @@
 #include <errno.h>
 #include <string.h>
 #include <stdint.h>
+#include <stdatomic.h>
 
 #if defined(_WIN32)
 #include <ws2ipdef.h>
 #endif
 
-
 struct test_s
 {
     zv_buffer_cache_t * buffer_cache;
-    size_t actions_remaining;
+    _Atomic size_t actions_remaining;
 };
 
 
@@ -58,7 +57,7 @@ static void close_handler(zv_channel_t * channel)
         zv_channel_get_peer_addr_str(channel)
     );
 
-    size_t actions_remaining = zv_atomic_sub_fetch(&test->actions_remaining, 1);
+    size_t actions_remaining = atomic_fetch_sub(&test->actions_remaining, 1) - 1;
     if (actions_remaining == 0)
     {
         zv_loop_t * loop = zv_channel_get_loop(channel);
@@ -113,7 +112,7 @@ static void after_connect_fail(zv_connector_t * connector, int sockerr)
 static void after_acceptor_stop(zv_acceptor_t * acceptor, void * arg)
 {
     struct test_s * test = zv_acceptor_get_extra_data(acceptor);
-    size_t actions_remaining = zv_atomic_sub_fetch(&test->actions_remaining, 1);
+    size_t actions_remaining = atomic_fetch_sub(&test->actions_remaining, 1) - 1;
     if (actions_remaining == 0)
     {
         zv_loop_t * loop = zv_acceptor_get_loop(acceptor);
