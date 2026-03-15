@@ -25,11 +25,15 @@
 #include <stdio.h>
 #include "zv/export.h"
 
+#if defined(__INTELLISENSE__)
+#define _Atomic
+#endif
+
 typedef struct zv_thread_pool_s zv_thread_pool_t;
 
 struct zv_thread_pool_task_s
 {
-    struct zv_thread_pool_task_s * next;
+    struct zv_thread_pool_task_s * _Atomic next;
     void (*func)(struct zv_thread_pool_task_s*);
 };
 

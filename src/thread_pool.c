@@ -17,7 +17,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "zv/atomic.h"
 #include "zv/os_thread.h"
 #include "zv/semaphore.h"
 #include "zv/thread_pool.h"
@@ -34,6 +33,12 @@
 #include <sys/sysctl.h>
 #endif
 
+#if defined(__INTELLISENSE__)
+#define _Atomic
+#else
+#include <stdatomic.h>
+#endif
+
 #define IDLE_THREAD 0x00000001L
 #define IDLE_THREADS_MASK 0x0000FFFFL
 #define FL_STOP 0x00010000L
@@ -43,9 +48,9 @@
 
 struct zv_thread_pool_partition_s
 {
-    struct zv_thread_pool_task_s * head;
+    struct zv_thread_pool_task_s * _Atomic head;
     char _padding1[64 - sizeof(void*)];
-    struct zv_thread_pool_task_s * tail;
+    struct zv_thread_pool_task_s * _Atomic tail;
     char _padding2[64 - sizeof(void*)];
 };
 
@@ -53,7 +58,7 @@ struct zv_thread_pool_partition_s
 struct zv_thread_pool_s
 {
     size_t worker_threads;
-    size_t state;
+    _Atomic size_t state;
     sem_t sem;
     struct zv_thread_pool_partition_s partitions[CONTENTION_FACTOR];
 };
@@ -75,43 +80,43 @@ static void * _zv_thread_pool_worker(void * arg)
         for (;;)
         {
             struct zv_thread_pool_partition_s * partition = &thread_pool->partitions[0];
-            struct zv_thread_pool_task_s * head = zv_atomic_swap(&partition->head, HEAD_LOCK);
+            struct zv_thread_pool_task_s * head = atomic_exchange(&partition->head, HEAD_LOCK);
             if (head == NULL)
             {
                 head = HEAD_LOCK;
-                if (zv_atomic_cas(&partition->head, &head, NULL))
+                if (atomic_compare_exchange_strong(&partition->head, &head, NULL))
                 {
-                    size_t state = zv_atomic_add_fetch(&thread_pool->state, IDLE_THREAD);
-                    //size_t state = zv_atomic_load(&thread_pool->state);
+                    size_t state = atomic_fetch_add(&thread_pool->state, IDLE_THREAD);
                     if (state & FL_STOP)
                         goto end;
                     else
                         break;
                 }
+                // zv_thread_pool_dispatch() could modify it from another thread
                 continue;
             }
 
             if (head == HEAD_LOCK)
             {
                 head_waits++;
-                zv_atomic_wait();
+                _zv_atomic_wait();
                 continue;
             }
 
-            struct zv_thread_pool_task_s * next = zv_atomic_load(&head->next);
-            zv_atomic_store(&partition->head, next);
+            struct zv_thread_pool_task_s * next = atomic_load(&head->next);
+            atomic_store(&partition->head, next);
 
             if (next == NULL)
             {
                 struct zv_thread_pool_task_s * tail = head;
-                if (!zv_atomic_cas(&partition->tail, &tail, NULL))
+                if (!atomic_compare_exchange_strong(&partition->tail, &tail, NULL))
                 {
-                    while ((next = zv_atomic_load(&head->next)) == NULL)
+                    while ((next = atomic_load(&head->next)) == NULL)
                     {
                         next_waits++;
-                        zv_atomic_wait();
+                        _zv_atomic_wait();
                     }
-                    zv_atomic_store(&partition->head, next);
+                    atomic_store(&partition->head, next);
                 }
             }
 
@@ -125,16 +130,15 @@ static void * _zv_thread_pool_worker(void * arg)
         {
             struct zv_thread_pool_partition_s * partition = &thread_pool->partitions[idx];
 
-            struct zv_thread_pool_task_s * head = zv_atomic_swap(&partition->head, HEAD_LOCK);
+            struct zv_thread_pool_task_s * head = atomic_exchange(&partition->head, HEAD_LOCK);
             if (head == NULL)
             {
                 head = HEAD_LOCK;
-                if (zv_atomic_cas(&partition->head, &head, NULL))
+                if (atomic_compare_exchange_strong(&partition->head, &head, NULL))
                 {
                     if (++cc == CONTENTION_FACTOR)
                     {
-                        size_t state = zv_atomic_add_fetch(&thread_pool->state, IDLE_THREAD, __ATOMIC_RELAXED);
-                        //size_t state = zv_atomic_load(&thread_pool->state);
+                        size_t state = atomic_fetch_add(&thread_pool->state, IDLE_THREAD);
                         if (state & FL_STOP)
                             goto end;
                         else
@@ -152,20 +156,20 @@ static void * _zv_thread_pool_worker(void * arg)
                 continue;
             }
 
-            struct zv_thread_pool_task_s * next = zv_atomic_load(&head->next);
-            zv_atomic_store(&partition->head, next);
+            struct zv_thread_pool_task_s * next = atomic_load(&head->next);
+            atomic_store(&partition->head, next);
 
             if (next == NULL)
             {
                 struct zv_thread_pool_task_s * tail = head;
-                if (!zv_atomic_cas(&partition->tail, &tail, NULL))
+                if (!atomic_compare_exchange_strong(&partition->tail, &tail, NULL))
                 {
-                    while ((next = zv_atomic_load(&head->next)) == NULL)
+                    while ((next = atomic_load(&head->next)) == NULL)
                     {
                         next_waits++;
-                        zv_atomic_wait();
+                        _zv_atomic_wait();
                     }
-                    zv_atomic_store(&partition->head, next);
+                    atomic_store(&partition->head, next);
                 }
             }
 
@@ -288,20 +292,20 @@ void zv_thread_pool_dispatch(
     struct zv_thread_pool_partition_s * partition = &thread_pool->partitions[idx];
 #endif
 
-    struct zv_thread_pool_task_s * tail = zv_atomic_swap(&partition->tail, task);
+    struct zv_thread_pool_task_s * tail = atomic_exchange(&partition->tail, task);
     if (tail == NULL)
-        zv_atomic_store(&partition->head, task);
+        atomic_store(&partition->head, task);
     else
-        zv_atomic_store(&tail->next, task);
+        atomic_store(&tail->next, task);
 
-    size_t state = zv_atomic_load(&thread_pool->state);
+    size_t state = atomic_load(&thread_pool->state);
     for (;;)
     {
         size_t idle_threads = (state & IDLE_THREADS_MASK);
         if (idle_threads == 0)
             break;
         size_t new_state = (state - IDLE_THREAD);
-        if (zv_atomic_cas(&thread_pool->state, &state, new_state))
+        if (atomic_compare_exchange_strong(&thread_pool->state, &state, new_state))
         {
             sem_post(&thread_pool->sem);
             break;
@@ -312,7 +316,15 @@ void zv_thread_pool_dispatch(
 
 void zv_thread_pool_destroy(zv_thread_pool_t * thread_pool)
 {
-    size_t state = zv_atomic_add_fetch(&thread_pool->state, FL_STOP, __ATOMIC_RELAXED);
+    size_t state = atomic_load(&thread_pool->state);
+    for (;;)
+    {
+        assert((state & FL_STOP) == 0);
+        size_t new_state = (state | FL_STOP);
+        if (atomic_compare_exchange_strong(&thread_pool->state, &state, new_state))
+            break;
+    }
+
     size_t idle_threads = (state & IDLE_THREADS_MASK);
     for (; idle_threads>0; idle_threads--)
         sem_post(&thread_pool->sem);
