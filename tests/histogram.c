@@ -52,14 +52,28 @@ void print_histogram_ex(size_t nvalues, const long * values, int nbuckets)
 
     int max_value = buffer[nvalues - 1];
     int max_value_2 = buffer[nvalues - 2];
-    int vv = (max_value_2 - buffer[0]) / 5;
-    if ((max_value - max_value_2) > vv)
+    if ((max_value - max_value_2) > (max_value_2 + max_value_2/3))
     {
         nvalues--;
         max_value = max_value_2;
     }
 
-    const long bucket_width = ((max_value - min_value) / nbuckets);
+    long bucket_width;
+    if (max_value == min_value)
+    {
+        bucket_width = 1;
+        nbuckets = 2;
+    }
+    else
+    {
+        bucket_width = ((max_value - min_value) / nbuckets);
+        if (bucket_width == 0)
+        {
+            bucket_width = 1;
+            nbuckets = (max_value - min_value + 1);
+        }
+    }
+
     for (int idx=0; idx<nvalues; idx++)
     {
         const long value = buffer[idx];
