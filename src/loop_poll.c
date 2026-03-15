@@ -20,7 +20,6 @@
 #if !defined(__APPLE__)
 
 #include "buffer_set/buffer_set.h"
-#include "zv/atomic.h"
 #include "zv/loop.h"
 #include "zv/os_compat.h"
 #include <assert.h>
@@ -31,6 +30,12 @@
 #if defined(__linux__)
 #include <poll.h>
 #include <string.h>
+#endif
+
+#if defined(__INTELLISENSE__)
+#define _Atomic
+#else
+#include <stdatomic.h>
 #endif
 
 struct zv_loop_poll_s
@@ -340,7 +345,7 @@ static void _zv_loop_poll_run(struct zv_loop_s * loop)
             pollfd->revents = 0;
         }
 
-        struct zv_event_handler_s * head = zv_atomic_load(&loop->head);
+        struct zv_event_handler_s * head = atomic_load(&loop->head);
         while (head)
         {
             if (zv_log_level_enabled(&_zv_loop_log, zv_log_level_debug))
@@ -496,7 +501,7 @@ static void _zv_loop_poll_run(struct zv_loop_s * loop)
             head = next;
         }
 
-        struct zv_event_handler_s * tail_n_flag = zv_atomic_load(&loop->tail_n_flag);
+        struct zv_event_handler_s * tail_n_flag = atomic_load(&loop->tail_n_flag);
         if (((uintptr_t)tail_n_flag) & 1)
         {
             //if (buffer_set_get_size(handlers) == 0)
