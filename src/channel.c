@@ -17,7 +17,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "zv/atomic.h"
 #include "zv/buffer.h"
 #include "zv/channel.h"
 #include "zv/loop.h"
@@ -33,6 +32,12 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+
+#if defined(__INTELLISENSE__)
+#define _Atomic
+#else
+#include <stdatomic.h>
+#endif
 
 #if !defined(IOV_MAX)
 #define IOV_MAX 64
@@ -65,7 +70,7 @@ struct zv_channel_s
     socklen_t peer_addr_len;
     char * peer_addr_str;
 
-    size_t retain_count;
+    _Atomic size_t retain_count;
 
     struct zv_event_handler_s read_handler;
     struct zv_channel_in_queue_s in_queue;
@@ -541,7 +546,7 @@ void zv_channel_start(zv_channel_t * channel)
 {
     // We need 3 extra reference count:
     // 2 for the inbound processor and 1 for outbound
-    zv_atomic_add_fetch(&channel->retain_count, 3, __ATOMIC_RELAXED);
+    atomic_fetch_add(&channel->retain_count, 3);
     // _zv_loop_add_handler() can't fail for 'zv_event_type_read'
     /* int rc = */ _zv_loop_add_handler(channel->loop, &channel->read_handler);
 }
@@ -636,14 +641,14 @@ int zv_channel_stop(zv_channel_t * channel)
 
 zv_channel_t * zv_channel_retain(zv_channel_t * channel)
 {
-    zv_atomic_add_fetch(&channel->retain_count, 1, __ATOMIC_RELAXED);
+    atomic_fetch_add(&channel->retain_count, 1);
     return channel;
 }
 
 
 void zv_channel_release(zv_channel_t * channel)
 {
-    size_t retain_count = zv_atomic_sub_fetch(&channel->retain_count, 1);
+    size_t retain_count = atomic_fetch_sub(&channel->retain_count, 1) - 1;
     if (retain_count == 0)
     {
         zv_socket_t sockfd = channel->read_handler.sockfd;

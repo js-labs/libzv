@@ -17,16 +17,21 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "zv/atomic.h"
 #include "zv/buffer.h"
 #include "zv/os_thread.h"
 #include <assert.h>
 #include <stdlib.h>
 #include <stdio.h>
 
+#if defined(__INTELLISENSE__)
+#define _Atomic
+#else
+#include <stdatomic.h>
+#endif
+
 struct zv_buffer_cache_s
 {
-    size_t retain_count;
+    _Atomic size_t retain_count;
     size_t buffer_size;
     size_t max_size;
     pthread_mutex_t lock;
@@ -85,13 +90,13 @@ zv_buffer_cache_t * zv_buffer_cache_create(
 
 void zv_buffer_cache_retain(zv_buffer_cache_t * buffer_cache)
 {
-    zv_atomic_add_fetch(&buffer_cache->retain_count, 1, __ATOMIC_RELAXED);
+    atomic_fetch_add(&buffer_cache->retain_count, 1);
 }
 
 
 void zv_buffer_cache_release(zv_buffer_cache_t * buffer_cache)
 {
-    size_t retain_count = zv_atomic_sub_fetch(&buffer_cache->retain_count, 1);
+    size_t retain_count = atomic_fetch_sub(&buffer_cache->retain_count, 1) - 1;
     if (retain_count == 0)
     {
         struct zv_buffer_s * buffer = buffer_cache->buffer;
