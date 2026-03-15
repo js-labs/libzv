@@ -40,4 +40,27 @@ static inline size_t _zv_round(size_t v, size_t m)
     return ((v + m - 1) / m) * m;
 }
 
+static inline void _zv_atomic_wait()
+{
+#if defined(_M_IX86)
+    __asm{_emit 0xf3}; __asm{_emit 0x90}; /* MSC */
+#elif defined(_M_X64)
+    _mm_pause(); /* MSC */
+#elif defined(__i386__) || defined(__x86_64__)
+    #if defined(__GNUC__)
+        __asm__ __volatile__("rep; nop\n");
+    #else
+        #warning Compiler not supported
+    #endif
+#elif defined(__ARM_ARCH)
+    #if defined(__GNUC__)
+        __asm__ __volatile__("yield");
+    #else
+        #warning Compiler not supported
+    #endif
+#else
+#error Platform/compiler not supported
+#endif
+}
+
 #endif /* !defined(ZV_MISC_H) */

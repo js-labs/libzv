@@ -89,6 +89,7 @@ endif()
 if(WIN32)
     set_property(TARGET zv PROPERTY C_STANDARD 11)
     target_compile_definitions(zv PRIVATE WIN32_LEAN_AND_MEAN)
+    target_compile_options(zv PRIVATE /experimental:c11atomics)
     target_link_libraries(zv ws2_32)
 endif()
 

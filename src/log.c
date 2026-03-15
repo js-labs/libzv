@@ -17,13 +17,19 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "zv/atomic.h"
 #include "zv/log.h"
 #include "zv/os_thread.h"
 #include "zv/os_time.h"
 #include "zv/semaphore.h"
 #include <stdio.h>
 #include <string.h>
+#include "misc.h"
+
+#if defined(__INTELLISENSE__)
+#define _Atomic
+#else
+#include <stdatomic.h>
+#endif
 
 #if defined(__linux__)
 #include <stdarg.h>
@@ -44,7 +50,7 @@ zv_log_event_type_t;
 
 struct zv_log_event_s
 {
-    struct zv_log_event_s * next;
+    struct zv_log_event_s * _Atomic next;
     zv_log_event_type_t type;
 
     union
@@ -94,14 +100,12 @@ struct zv_log_backend_s
 struct zv_log_s
 {
     struct zv_log_backend_s * backend;
-
-    struct zv_log_event_s * queue_head;
-    struct zv_log_event_s * queue_tail;
-
+    struct zv_log_event_s * _Atomic queue_head;
+    struct zv_log_event_s * _Atomic queue_tail;
     sem_t sem;
 };
 
-static struct zv_log_s * _zv_log = NULL;
+static struct zv_log_s * _Atomic _zv_log = NULL;
 
 
 static void * _zv_log_worker(void * arg)
@@ -159,15 +163,15 @@ static void * _zv_log_worker(void * arg)
                 // do nothing
             }
 
-            struct zv_log_event_s * next = zv_atomic_load(&log_event->next);
+            struct zv_log_event_s * next = atomic_load(&log_event->next);
             if (next == NULL)
             {
-                zv_atomic_store(&log->queue_head, NULL);
+                atomic_store(&log->queue_head, NULL);
                 struct zv_log_event_s * tail = log_event;
-                if (!zv_atomic_cas(&log->queue_tail, &tail, NULL))
+                if (!atomic_compare_exchange_strong(&log->queue_tail, &tail, NULL))
                 {
-                    while ((next = zv_atomic_load(&log_event->next)) == NULL)
-                        zv_atomic_wait();
+                    while ((next = atomic_load(&log_event->next)) == NULL)
+                        _zv_atomic_wait();
                 }
             }
 
@@ -204,7 +208,7 @@ static struct zv_log_s * _zv_log_create()
     sem_init(&new_log->sem, 0, 0);
 
     struct zv_log_s * log = NULL;
-    if (zv_atomic_cas(&_zv_log, &log, new_log))
+    if (atomic_compare_exchange_strong(&_zv_log, &log, new_log))
     {
         pthread_t thread_id;
         pthread_create(&thread_id, NULL, &_zv_log_worker, new_log);
@@ -379,24 +383,24 @@ FILE * zv_log_remove_file_backend(zv_log_backend_t * backend)
 
 void zv_log(zv_log_event_t * log_event)
 {
-    struct zv_log_s * log = zv_atomic_load(&_zv_log);
+    struct zv_log_s * log = atomic_load(&_zv_log);
     if (log == NULL)
         log = _zv_log_create();
 
-    struct zv_log_event_s * tail = zv_atomic_swap(&log->queue_tail, log_event);
+    struct zv_log_event_s * tail = atomic_exchange(&log->queue_tail, log_event);
     if (tail == NULL)
     {
-        zv_atomic_store(&log->queue_head, log_event);
+        atomic_store(&log->queue_head, log_event);
         sem_post(&log->sem);
     }
     else
-        zv_atomic_store(&tail->next, log_event);
+        atomic_store(&tail->next, log_event);
 }
 
 
 void zv_log_flush()
 {
-    struct zv_log_s * log = zv_atomic_load(&_zv_log);
+    struct zv_log_s * log = atomic_load(&_zv_log);
     if (log != NULL)
     {
         struct zv_log_event_s log_event;
