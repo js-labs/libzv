@@ -18,7 +18,6 @@
  */
 
 #include "channel_in_queue.h"
-#include "zv/atomic.h"
 #include "zv/buffer.h"
 #include "loop_int.h"
 #include <assert.h>
@@ -27,6 +26,12 @@
 #include <limits.h>
 #elif defined(__linux__) || defined(__APPLE__)
 #include <stdint.h>
+#endif
+
+#if defined(__INTELLISENSE__)
+#define _Atomic
+#else
+#include <stdatomic.h>
 #endif
 
 #if defined(_LP64) || defined(__LP64__) || defined(_M_X64)
@@ -141,7 +146,7 @@ size_t zv_channel_in_queue_move_wr(
     else
         in_queue->wr_offs += bytes;
 
-    size_t state = zv_atomic_load(&in_queue->state);
+    size_t state = atomic_load(&in_queue->state);
     for (;;)
     {
         assert((state & STATE_FLAG_SUSPENDED) == 0);
@@ -156,7 +161,7 @@ size_t zv_channel_in_queue_move_wr(
         else
             suspend = 0;
 
-        if (zv_atomic_cas(&in_queue->state, &state, new_state))
+        if (atomic_compare_exchange_strong(&in_queue->state, &state, new_state))
         {
             *psuspend = suspend;
             return new_size;
@@ -211,7 +216,7 @@ size_t zv_channel_in_queue_process_data(
     }
     while (bytes_remaining > 0);
 
-    size_t state = zv_atomic_load(&in_queue->state);
+    size_t state = atomic_load(&in_queue->state);
     for (;;)
     {
         const size_t size = (state & STATE_SIZE_MASK);
@@ -232,7 +237,7 @@ size_t zv_channel_in_queue_process_data(
             resume_action = 0;
 
         size_t old_state = state;
-        if (zv_atomic_cas(&in_queue->state, &state, new_state))
+        if (atomic_compare_exchange_strong(&in_queue->state, &state, new_state))
         {
             *presume_action = resume_action;
             if (new_size > 0)
@@ -266,12 +271,12 @@ int zv_channel_in_queue_close(
     struct zv_channel_in_queue_s * in_queue,
     int * is_stopped
 ) {
-    size_t state = zv_atomic_load(&in_queue->state);
+    size_t state = atomic_load(&in_queue->state);
     for (;;)
     {
         assert((state & STATE_FLAG_CLOSE) == 0);
         size_t new_state = (state | STATE_FLAG_CLOSE);
-        if (zv_atomic_cas(&in_queue->state, &state, new_state))
+        if (atomic_compare_exchange_strong(&in_queue->state, &state, new_state))
         {
             *is_stopped = ((state & STATE_FLAG_STOP) != 0);
             return ((state & STATE_SIZE_MASK) == 0);
@@ -283,14 +288,14 @@ int zv_channel_in_queue_close(
 int zv_channel_in_queue_stop(
     struct zv_channel_in_queue_s * in_queue
 ) {
-    size_t state = zv_atomic_load(&in_queue->state);
+    size_t state = atomic_load(&in_queue->state);
     for (;;)
     {
         if (state & (STATE_FLAG_CLOSE|STATE_FLAG_STOP))
             return -1;
 
         size_t new_state = (state | STATE_FLAG_STOP);
-        if (zv_atomic_cas(&in_queue->state, &state, new_state))
+        if (atomic_compare_exchange_strong(&in_queue->state, &state, new_state))
             return 0;
     }
 }
