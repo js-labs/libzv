@@ -25,6 +25,10 @@
 #include "zv/thread_pool.h"
 #include "zv/timer_pool.h"
 
+#if defined(__INTELLISENSE__)
+#define _Atomic
+#endif
+
 typedef enum
 {
     zv_event_type_accept = 0,
@@ -50,7 +54,7 @@ const char * zv_event_opcode_get_name(zv_event_opcode_t event_opcode);
 
 struct zv_event_handler_s
 {
-    struct zv_event_handler_s * next;
+    struct zv_event_handler_s * _Atomic next;
     zv_socket_t sockfd;
     // Store event type and event action in char to save some memory
     char /*zv_event_type_t*/ event_type;
@@ -83,9 +87,9 @@ struct zv_loop_s
     zv_thread_pool_t * thread_pool;
     zv_timer_pool_t * timer_pool;
 
-    struct zv_event_handler_s * head;
+    struct zv_event_handler_s * _Atomic head;
     char _padding1[64 - sizeof(void*)];
-    struct zv_event_handler_s * tail_n_flag;
+    struct zv_event_handler_s * _Atomic tail_n_flag;
 };
 
 int _zv_loop_init(

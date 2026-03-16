@@ -17,7 +17,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "zv/atomic.h"
 #include "zv/log.h"
 #include "zv/loop.h"
 #include "zv/os_compat.h"
@@ -28,10 +27,15 @@
 #include <inttypes.h>
 #include <string.h>
 
-#if defined(_WIN32)
-#else
+#if !defined(_WIN32)
 #include <sys/select.h>
 #include <unistd.h>
+#endif
+
+#if defined(__INTELLISENSE__)
+#define _Atomic
+#else
+#include <stdatomic.h>
 #endif
 
 extern struct zv_log_layer_s _zv_loop_log;
@@ -294,7 +298,7 @@ static void _zv_loop_select_run(struct zv_loop_s * loop)
             assert(rc == 1);
         }
 
-        struct zv_event_handler_s * head = zv_atomic_load(&loop->head);
+        struct zv_event_handler_s * head = atomic_load(&loop->head);
         while (head)
         {
             ZV_LOG_TRACE(
@@ -391,7 +395,7 @@ static void _zv_loop_select_run(struct zv_loop_s * loop)
             head = next;
         }
 
-        struct zv_event_handler_s * tail_n_flag = zv_atomic_load(&loop->tail_n_flag);
+        struct zv_event_handler_s * tail_n_flag = atomic_load(&loop->tail_n_flag);
         if (((uintptr_t)tail_n_flag) & 1)
         {
             //if (buffer_set_get_size(handlers) == 0)

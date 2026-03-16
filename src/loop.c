@@ -17,11 +17,11 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "zv/atomic.h"
 #include "zv/log.h"
 #include "zv/loop.h"
 
 #include "loop_int.h"
+#include "misc.h"
 
 #include <assert.h>
 #include <inttypes.h>
@@ -29,6 +29,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#if defined(__INTELLISENSE__)
+#define _Atomic
+#else
+#include <stdatomic.h>
+#endif
 
 struct zv_log_layer_s _zv_loop_log = { "xv.loop", zv_log_level_info };
 
@@ -192,7 +198,7 @@ int _zv_loop_add_handler(zv_loop_t * loop, struct zv_event_handler_s * handler)
 {
     assert(handler->next == NULL);
     assert((handler->opcode == zv_event_opcode_add) || (handler->opcode == zv_event_opcode_remove));
-    struct zv_event_handler_s * tail_n_flag = zv_atomic_load(&loop->tail_n_flag);
+    struct zv_event_handler_s * tail_n_flag = atomic_load(&loop->tail_n_flag);
     for (;;)
     {
         const uintptr_t stop = (((uintptr_t)tail_n_flag) & 1);
@@ -207,14 +213,14 @@ int _zv_loop_add_handler(zv_loop_t * loop, struct zv_event_handler_s * handler)
         }
 
         struct zv_event_handler_s * new_tail_n_flag = (struct zv_event_handler_s*) (((uintptr_t)handler) | stop);
-        if (zv_atomic_cas(&loop->tail_n_flag, &tail_n_flag, new_tail_n_flag))
+        if (atomic_compare_exchange_strong(&loop->tail_n_flag, &tail_n_flag, new_tail_n_flag))
         {
             struct zv_event_handler_s * tail = (struct zv_event_handler_s*) (((uintptr_t)tail_n_flag) - stop);
             if (tail)
-                zv_atomic_store(&tail->next, handler);
+                atomic_store(&tail->next, handler);
             else
             {
-                zv_atomic_store(&loop->head, handler);
+                atomic_store(&loop->head, handler);
                 loop->wakeup(loop);
             }
             return 0;
@@ -227,18 +233,18 @@ void _zv_loop_resume_handler(zv_loop_t * loop, struct zv_event_handler_s * handl
 {
     assert(handler->opcode != zv_event_opcode_add);
     assert((handler->event_type == zv_event_type_accept) || (handler->event_type == zv_event_type_read));
-    struct zv_event_handler_s * tail_n_flag = zv_atomic_load(&loop->tail_n_flag);
+    struct zv_event_handler_s * tail_n_flag = atomic_load(&loop->tail_n_flag);
     for (;;)
     {
         const uintptr_t stop = (((uintptr_t)tail_n_flag) & 1);
         struct zv_event_handler_s * new_tail_n_flag = (struct zv_event_handler_s*) (((uintptr_t)handler) | stop);
-        if (zv_atomic_cas(&loop->tail_n_flag, &tail_n_flag, new_tail_n_flag))
+        if (atomic_compare_exchange_strong(&loop->tail_n_flag, &tail_n_flag, new_tail_n_flag))
         {
             struct zv_event_handler_s * tail = (struct zv_event_handler_s*) (((uintptr_t)tail_n_flag) - stop);
             if (tail == NULL)
-                zv_atomic_store(&loop->head, handler);
+                atomic_store(&loop->head, handler);
             else
-                zv_atomic_store(&tail->next, handler);
+                atomic_store(&tail->next, handler);
             break;
         }
     }
@@ -249,17 +255,17 @@ struct zv_event_handler_s * _zv_loop_pop(
     struct zv_loop_s * loop,
     struct zv_event_handler_s * event_handler
 ) {
-    struct zv_event_handler_s * next = zv_atomic_load(&event_handler->next);
-    if (!next)
+    struct zv_event_handler_s * next = atomic_load(&event_handler->next);
+    if (next == NULL)
     {
-        zv_atomic_store(&loop->head, NULL);
-        struct zv_event_handler_s * tail_n_flag = zv_atomic_load(&loop->tail_n_flag);
+        atomic_store(&loop->head, NULL);
+        struct zv_event_handler_s * tail_n_flag = atomic_load(&loop->tail_n_flag);
         uintptr_t stop = (((uintptr_t)tail_n_flag) & 1);
         struct zv_event_handler_s * tail = (struct zv_event_handler_s*) (((uintptr_t)tail_n_flag) - stop);
         if (event_handler == tail)
         {
             struct zv_event_handler_s * new_tail_n_flag = (struct zv_event_handler_s*) stop;
-            if (zv_atomic_cas(&loop->tail_n_flag, &tail_n_flag, new_tail_n_flag))
+            if (atomic_compare_exchange_strong(&loop->tail_n_flag, &tail_n_flag, new_tail_n_flag))
                 return NULL;
 
             // Stop flag could be set after we read 'tail_n_flag'
@@ -268,12 +274,12 @@ struct zv_event_handler_s * _zv_loop_pop(
             if (tail == event_handler)
             {
                 new_tail_n_flag = (struct zv_event_handler_s*) (uintptr_t) 1;
-                if (zv_atomic_cas(&loop->tail_n_flag, &tail_n_flag, new_tail_n_flag))
+                if (atomic_compare_exchange_strong(&loop->tail_n_flag, &tail_n_flag, new_tail_n_flag))
                     return NULL;
             }
         }
-        while ((next = zv_atomic_load(&event_handler->next)) == NULL)
-            zv_atomic_wait();
+        while ((next = atomic_load(&event_handler->next)) == NULL)
+            _zv_atomic_wait();
     }
     event_handler->next = NULL;
     return next;
@@ -284,14 +290,14 @@ void zv_loop_stop(zv_loop_t * loop)
 {
     ZV_LOG_DEBUG(_zv_loop_log, "0x%" PRIxPTR ": zv_loop_stop", loop);
 
-    struct zv_event_handler_s * tail_n_flag = zv_atomic_load(&loop->tail_n_flag);
+    struct zv_event_handler_s * tail_n_flag = atomic_load(&loop->tail_n_flag);
     for (;;)
     {
         if (((uintptr_t)tail_n_flag) & 1)
             break;
 
         struct zv_event_handler_s * new_tail_n_flag = (struct zv_event_handler_s*) (((uintptr_t)tail_n_flag) | 1);
-        if (zv_atomic_cas(&loop->tail_n_flag, &tail_n_flag, new_tail_n_flag))
+        if (atomic_compare_exchange_strong(&loop->tail_n_flag, &tail_n_flag, new_tail_n_flag))
         {
             if (!tail_n_flag)
                 loop->wakeup(loop);
