@@ -18,14 +18,20 @@
  */
 
 #include "channel_out_queue.h"
-#include "zv/atomic.h"
 #include "zv/buffer.h"
+#include "misc.h"
 
 #if defined(_WIN32)
 #include <limits.h>
 #elif defined(__linux__) || defined(__APPLE__)
 #include <stdint.h>
 #include <string.h>
+#endif
+
+#if defined(__INTELLISENSE__)
+#define _Atomic
+#else
+#include <stdatomic.h>
 #endif
 
 #if defined(_LP64) || defined(__LP64__) || defined(_M_X64)
@@ -76,13 +82,13 @@ static size_t _zv_channel_out_queue_add_data(
     const size_t WRITERS_MASK = (((ONE << WRITERS_BITS) - 1) << (OFFS_BITS * 2));
     const size_t TAIL_LOCK = (ONE << (OFFS_BITS * 2 + WRITERS_BITS));
 
-    size_t state = zv_atomic_load(&out_queue->add_state);
+    size_t state = atomic_load(&out_queue->add_state);
     for (;;)
     {
         if (state & TAIL_LOCK)
         {
-            zv_atomic_wait();
-            state = zv_atomic_load(&out_queue->add_state);
+            _zv_atomic_wait();
+            state = atomic_load(&out_queue->add_state);
             continue;
         }
 
@@ -92,13 +98,13 @@ static size_t _zv_channel_out_queue_add_data(
         {
             if (state & WRITERS_MASK)
             {
-                zv_atomic_wait();
-                state = zv_atomic_load(&out_queue->add_state);
+                _zv_atomic_wait();
+                state = atomic_load(&out_queue->add_state);
                 continue;
             }
 
             size_t new_state = (state | TAIL_LOCK);
-            if (!zv_atomic_cas(&out_queue->add_state, &state, new_state))
+            if (!atomic_compare_exchange_strong(&out_queue->add_state, &state, new_state))
                 continue;
 
             if (space > 0)
@@ -126,15 +132,15 @@ static size_t _zv_channel_out_queue_add_data(
             }
 
             out_queue->tail = buffer;
-            zv_atomic_store(&out_queue->add_state, bytes);
+            atomic_store(&out_queue->add_state, bytes);
             return size;
         }
 
         size_t writers = (state & WRITERS_MASK);
         if (writers == WRITERS_MASK)
         {
-            zv_atomic_wait();
-            state = zv_atomic_load(&out_queue->add_state);
+            _zv_atomic_wait();
+            state = atomic_load(&out_queue->add_state);
             continue;
         }
 
@@ -147,7 +153,7 @@ static size_t _zv_channel_out_queue_add_data(
         new_state += size;
         new_state += WRITER;
 
-        if (!zv_atomic_cas(&out_queue->add_state, &state, new_state))
+        if (!atomic_compare_exchange_strong(&out_queue->add_state, &state, new_state))
             continue;
 
         void * dst = ((char*)(out_queue->tail + 1)) + offs;
@@ -161,19 +167,19 @@ static size_t _zv_channel_out_queue_add_data(
             if ((new_state & WRITERS_MASK) == 0)
             {
                 new_state &= ~(OFFS_MASK << OFFS_BITS);
-                if (zv_atomic_cas(&out_queue->add_state, &state, new_state))
+                if (atomic_compare_exchange_strong(&out_queue->add_state, &state, new_state))
                     return ((new_state & OFFS_MASK) - start_offs);
             }
             else if (offs == start_offs)
             {
                 new_state &= ~(OFFS_MASK << OFFS_BITS);
                 new_state |= ((offs + size) << OFFS_BITS);
-                if (zv_atomic_cas(&out_queue->add_state, &state, new_state))
+                if (atomic_compare_exchange_strong(&out_queue->add_state, &state, new_state))
                     return size;
             }
             else
             {
-                if (zv_atomic_cas(&out_queue->add_state, &state, new_state))
+                if (atomic_compare_exchange_strong(&out_queue->add_state, &state, new_state))
                     return 0;
             }
         }
@@ -185,7 +191,7 @@ int zv_channel_out_queue_add_data(
     const void * data,
     size_t size
 ) {
-    size_t state = zv_atomic_load(&out_queue->state);
+    size_t state = atomic_load(&out_queue->state);
     if (state & STATE_FLAG_CLOSE)
         return -1;
 
@@ -200,7 +206,7 @@ int zv_channel_out_queue_add_data(
     for (;;)
     {
         size_t new_state = (state + bytes_ready);
-        if (zv_atomic_cas(&out_queue->state, &state, new_state))
+        if (atomic_compare_exchange_strong(&out_queue->state, &state, new_state))
         {
             if ((state & STATE_SIZE_MASK) == 0)
                 return 1;
@@ -238,7 +244,7 @@ int zv_channel_out_queue_get_data(
     int iovc_max
 ) {
     const size_t buffer_size = zv_buffer_cache_get_buffer_size(out_queue->buffer_cache);
-    size_t state = zv_atomic_load(&out_queue->state);
+    size_t state = atomic_load(&out_queue->state);
     size_t bytes_ready = (state & STATE_SIZE_MASK);
 
     struct zv_buffer_s * buffer = out_queue->head;
@@ -320,7 +326,7 @@ size_t zv_channel_out_queue_remove_data(
         zv_buffer_cache_put(out_queue->buffer_cache, head);
     }
 
-    size_t state = zv_atomic_sub_fetch(&out_queue->state, bytes);
+    size_t state = atomic_fetch_sub(&out_queue->state, bytes) - bytes;
     size_t bytes_remaining = (state & STATE_SIZE_MASK);
     if (bytes_remaining > 0)
         return bytes_remaining;
@@ -335,7 +341,7 @@ int zv_channel_out_queue_close(
     struct zv_channel_out_queue_s * out_queue,
     int * is_empty
 ) {
-    size_t state = zv_atomic_load(&out_queue->state);
+    size_t state = atomic_load(&out_queue->state);
     for (;;)
     {
         const size_t bytes_remaining = (state & STATE_SIZE_MASK);
@@ -346,7 +352,7 @@ int zv_channel_out_queue_close(
         }
 
         size_t new_state = (state | STATE_FLAG_CLOSE);
-        if (zv_atomic_cas(&out_queue->state, &state, new_state))
+        if (atomic_compare_exchange_strong(&out_queue->state, &state, new_state))
         {
             *is_empty = (bytes_remaining == 0);
             return 0;

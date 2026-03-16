@@ -28,6 +28,10 @@
 #include <sys/uio.h>
 #endif
 
+#if defined(__INTELLISENSE__)
+#define _Atomic
+#endif
+
 typedef struct zv_buffer_cache_s zv_buffer_cache_t;
 struct zv_buffer_s;
 
@@ -39,8 +43,8 @@ struct zv_channel_out_queue_s
     struct zv_buffer_s * tail;
 
     size_t rd_offs;
-    size_t add_state;
-    size_t state;
+    _Atomic size_t add_state;
+    _Atomic size_t state;
 };
 
 void zv_channel_out_queue_init(
