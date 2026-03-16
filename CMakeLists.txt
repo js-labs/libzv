@@ -10,7 +10,6 @@ include_directories(include)
 set(LIB_SRCS
     include/zv/acceptor.h
     include/zv/array.h
-    include/zv/atomic.h
     include/zv/buffer.h
     include/zv/channel.h
     include/zv/config.h
