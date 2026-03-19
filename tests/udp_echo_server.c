@@ -235,7 +235,8 @@ void udp_echo_server_stop_and_destroy(udp_echo_server_t * server)
 #if defined(_WIN32)
         send(server->sock.cmd_pipe[1], &cmd, sizeof(cmd), 0);
 #else
-        write(server->sock.cmd_pipe[1], &cmd, sizeof(cmd));
+        ssize_t rc = write(server->sock.cmd_pipe[1], &cmd, sizeof(cmd));
+        (rc);
 #endif
     }
 

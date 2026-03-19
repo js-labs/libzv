@@ -53,7 +53,7 @@ struct pinger_s
 };
 
 
-static int pinger_init(struct pinger_s * pinger, size_t * remaining_pingers)
+static int pinger_init(struct pinger_s * pinger, _Atomic size_t * remaining_pingers)
 {
     zv_buffer_cache_t * buffer_cache = zv_buffer_cache_create(1024*8, 8, 2);
     if (buffer_cache != NULL)
@@ -173,7 +173,7 @@ static void run_pingers(in_port_t server_port, int count)
     if (pingers != NULL)
     {
         struct sockaddr_in addr = make_sockaddr_in(INADDR_LOOPBACK, server_port);
-        size_t remaining_pingers = count;
+        _Atomic size_t remaining_pingers = count;
         for (int idx=0; idx<count; idx++)
         {
             if (pinger_init(&pingers[idx], &remaining_pingers) == 0)

@@ -421,7 +421,8 @@ static void _zv_loop_select_wakeup(struct zv_loop_s * loop)
 #if defined(_WIN32)
     send(impl->wakeup_pipe[1], &c, sizeof(c), 0);
 #else
-    write(impl->wakeup_pipe[1], &c, sizeof(c));
+    ssize_t rc = write(impl->wakeup_pipe[1], &c, sizeof(c));
+    (rc);
 #endif
 }
 

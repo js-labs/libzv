@@ -176,7 +176,7 @@ static void * sender_thread_func(void * _arg)
     zv_channel_t * channel = arg->channel;
     free(_arg);
 
-    size_t message_min_size = (sizeof(struct msg_test_message_s) - 1);
+    size_t message_min_size = sizeof(struct msg_test_message_s);
     size_t message_size = test->message_size;
     if (message_size < message_min_size)
         message_size = message_min_size;
@@ -192,7 +192,7 @@ static void * sender_thread_func(void * _arg)
     test_message->id = MSG_TEST_MESSAGE;
     test_message->message_count = test->message_count;
 
-    char * ptr = &test_message->extra_data;
+    char * ptr = ((char*)buffer) + sizeof(struct msg_test_message_s);
     for (size_t idx=0; idx<(message_size - message_min_size); idx++)
         *(ptr++) = (char) idx;
 

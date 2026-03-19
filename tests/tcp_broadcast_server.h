@@ -22,7 +22,6 @@ struct msg_test_message_s
     uint16_t size;
     uint16_t id;
     size_t message_count;
-    char extra_data;
 };
 
 struct msg_client_completed_s
