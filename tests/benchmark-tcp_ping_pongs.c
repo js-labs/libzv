@@ -235,7 +235,7 @@ int benchmark_tcp_ping_pong(int pingers)
 
     if (echo_server != NULL)
     {
-        run_pingers(server_port, 10);
+        run_pingers(server_port, pingers);
         tcp_echo_server_stop_and_destroy(echo_server);
         rc = 0;
     }
