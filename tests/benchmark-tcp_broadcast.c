@@ -17,6 +17,27 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+ /*
+  * TCP Broadcast Performance Benchmark
+  *
+  *   Measures the throughput of broadcasting TCP messages from a
+  *   single publisher to multiple concurrent subscribers via a
+  *   central server.
+  *
+  * Test topology:
+  *   - One broadcast server
+  *   - N clients connect to the server
+  *   - One of the clients acts as the publisher; the remaining (N-1)
+  *     act as subscribers
+  *
+  * Measurement:
+  *   Elapsed time = timestamp of the last subscriber completion
+  *                - timestamp when the first message was enqueued by
+  *                  the sender thread.
+  *   The result is reported as total elapsed time in seconds for
+  *   broadcasting <message_count> messages of <message_size> bytes each.
+  */
+
 #include "zv/acceptor.h"
 #include "zv/array.h"
 #include "zv/buffer.h"
@@ -89,6 +110,7 @@ static int test_init(
         }
         else
             fprintf(stderr, "pthread_mutex_init() failed");
+        free(test->clients);
     }
     else
         fprintf(stderr, "malloc() failed\n");

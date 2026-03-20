@@ -30,11 +30,17 @@ struct zv_array_header_s
     size_t size;
 };
 
-ZV_EXPORT void * zv_array_set_capacity_i(void * array, size_t new_capacity, size_t element_size);
+ZV_EXPORT void * zv_array_set_capacity_i(
+    void * array,
+    size_t new_capacity,
+    size_t element_size
+);
 
 static inline struct zv_array_header_s * zv_array_get_header(void * array)
 {
-    return (struct zv_array_header_s*) (((char*)array) - sizeof(struct zv_array_header_s));
+    char * ptr = (char*) array;
+    ptr -= sizeof(struct zv_array_header_s);
+    return (struct zv_array_header_s*) ptr;
 }
 
 static inline void zv_array_destroy(void * array)
