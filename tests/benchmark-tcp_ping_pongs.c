@@ -218,7 +218,7 @@ static void run_pingers(in_port_t server_port, int count)
 }
 
 
-int benchmark_tcp_ping_pong(int pingers)
+int benchmark_tcp_ping_pong(int pingers, int use_libzv)
 {
     int rc;
 
@@ -229,9 +229,22 @@ int benchmark_tcp_ping_pong(int pingers)
     zv_loop_set_log_level(zv_log_level_debug);
     */
 
-    struct zv_loop_config_s loop_config = *zv_loop_config_get_default();
+    struct zv_loop_config_s * loop_config;
+    if (use_libzv)
+    {
+        loop_config = malloc(sizeof(struct zv_loop_config_s));
+        if (loop_config == NULL)
+        {
+            fprintf(stderr, "malloc() failed\n");
+            return -1;
+        }
+        *loop_config = *zv_loop_config_get_default();
+    }
+    else
+        loop_config = NULL;
+
     in_port_t server_port;
-    tcp_echo_server_t * echo_server = tcp_echo_server_create(&loop_config, &server_port);
+    tcp_echo_server_t * echo_server = tcp_echo_server_create(loop_config, &server_port);
 
     if (echo_server != NULL)
     {
@@ -244,6 +257,8 @@ int benchmark_tcp_ping_pong(int pingers)
         fprintf(stderr, "echo_server() failed\n");
         rc = -1;
     }
+
+    free(loop_config);
 
     /*
     zv_log_remove_file_backend(log_backend);
