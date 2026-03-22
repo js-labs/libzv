@@ -107,7 +107,8 @@ void zv_buffer_cache_release(zv_buffer_cache_t * buffer_cache)
             buffer = next;
         }
         pthread_mutex_destroy(&buffer_cache->lock);
-        //assert(buffer_cache->in_use == 0);
+        assert(buffer_cache->in_use == 0);
+        /*
         printf(
             "buffer_cache[0x%p] stats: gets=%zu gets_alloc=%zu puts=%zu puts_free=%zu\n",
             buffer_cache,
@@ -116,7 +117,7 @@ void zv_buffer_cache_release(zv_buffer_cache_t * buffer_cache)
             buffer_cache->stats.puts,
             buffer_cache->stats.puts_free
         );
-
+        */
         free(buffer_cache);
     }
 }

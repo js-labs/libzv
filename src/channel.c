@@ -730,3 +730,25 @@ int zv_channel_send(zv_channel_t * channel, const void * data, size_t size)
         return rc;
     }
 }
+
+
+int zv_channel_send_sync(zv_channel_t * channel, const void * data, size_t size)
+{
+    // We could write data directly to the socket here without
+    // copying it to the out queue, and it would work well in 99% of cases.
+    // However, handling socket write errors would be painful.
+    // Perhaps later...
+    int rc = zv_channel_out_queue_add_data(&channel->out_queue, data, size);
+    if (rc > 0)
+    {
+        _zv_channel_write_task(&channel->write_handler.task);
+        return 0;
+    }
+    else
+    {
+        // rc is either
+        // 0: data added, but there is a thread writting socket right now
+        // -1: channel is closed
+        return rc;
+    }
+}

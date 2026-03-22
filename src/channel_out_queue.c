@@ -199,7 +199,7 @@ int zv_channel_out_queue_add_data(
     if (bytes_ready == 0)
     {
         // can happen if current thread finished write
-        // sonner than other thread started writting data in the area with lower address
+        // sooner than other thread started writting data in the area with lower address
         return 0;
     }
 

@@ -89,7 +89,7 @@ static void channel_input_handler(zv_channel_t * channel, const void * data, siz
             if (elapsed_time_ms > TIME_MS)
                 zv_channel_stop(channel);
             else
-                zv_channel_send(channel, PING, PING_SIZE);
+                zv_channel_send_sync(channel, PING, PING_SIZE);
         }
     }
 }
