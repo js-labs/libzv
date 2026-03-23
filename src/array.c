@@ -22,17 +22,32 @@
 
 void * zv_array_set_capacity_i(void * array, size_t new_capacity, size_t element_size)
 {
-    struct zv_array_header_s * header = zv_array_get_header(array);
-    if (new_capacity > header->capacity)
+    if (array == NULL)
     {
         void * ptr = malloc(sizeof(struct zv_array_header_s) + new_capacity * element_size);
+        if (ptr == NULL)
+            return NULL;
         ((struct zv_array_header_s*)ptr)->capacity = new_capacity;
-        ((struct zv_array_header_s*)ptr)->size = header->size;
+        ((struct zv_array_header_s*)ptr)->size = 0;
         void * ret = ((char*)ptr) + sizeof(struct zv_array_header_s);
-        memcpy(ret, array, header->size * element_size);
-        free(header);
         return ret;
     }
     else
-        return array;
+    {
+        struct zv_array_header_s * header = zv_array_get_header(array);
+        if (new_capacity > header->capacity)
+        {
+            void * ptr = malloc(sizeof(struct zv_array_header_s) + new_capacity * element_size);
+            if (ptr == NULL)
+                return NULL;
+            ((struct zv_array_header_s*)ptr)->capacity = new_capacity;
+            ((struct zv_array_header_s*)ptr)->size = header->size;
+            void * ret = ((char*)ptr) + sizeof(struct zv_array_header_s);
+            memcpy(ret, array, header->size * element_size);
+            free(header);
+            return ret;
+        }
+        else
+            return array;
+    }
 }

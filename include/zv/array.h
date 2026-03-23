@@ -87,10 +87,10 @@ static inline size_t zv_array_get_size(void * array)
 }
 
 #define zv_array_reserve(__array, __count) \
-    do { (__array) = zv_array_reserve_i((__array), (__count), sizeof(*(__array))) } while (0)
+    do { (__array) = zv_array_reserve_i((__array), (__count), sizeof(*(__array))); } while (0)
 
 #define zv_array_set_capacity(__array, __new_capacity) \
-    do { (__array) = zv_array_set_capacity_i((__array), (__new_capacity), sizeof(*(__array))); } while 0
+    do { (__array) = zv_array_set_capacity_i((__array), (__new_capacity), sizeof(*(__array))); } while (0)
 
 #define zv_array_append(__array) \
     ((__array) = zv_array_reserve_i((__array), 1, sizeof(*(__array))), \
