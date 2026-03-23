@@ -49,19 +49,27 @@ struct pinger_s
     struct timeval start_time;
     unsigned int state;
     size_t pongs;
-    _Atomic size_t * remaining_pingers;
+    size_t total_pingers;
+    _Atomic size_t * connected_pingers;
+    _Atomic size_t * completed_pingers;
 };
 
 
-static int pinger_init(struct pinger_s * pinger, _Atomic size_t * remaining_pingers)
-{
+static int pinger_init(
+    struct pinger_s * pinger,
+    size_t total_pingers,
+    _Atomic size_t * connected_pingers,
+    _Atomic size_t * completed_pingers
+) {
     zv_buffer_cache_t * buffer_cache = zv_buffer_cache_create(1024*8, 8, 2);
     if (buffer_cache != NULL)
     {
         pinger->buffer_cache = buffer_cache;
         pinger->state = 0;
         pinger->pongs = 0;
-        pinger->remaining_pingers = remaining_pingers;
+        pinger->total_pingers = total_pingers;
+        pinger->connected_pingers = connected_pingers;
+        pinger->completed_pingers = completed_pingers;
         return 0;
     }
     return -1;
@@ -98,15 +106,15 @@ static void channel_input_handler(zv_channel_t * channel, const void * data, siz
 static void channel_close_handler(zv_channel_t * channel)
 {
     struct pinger_s * pinger = zv_channel_get_extra_data(channel);
-    size_t remaining_pingers = atomic_fetch_sub(pinger->remaining_pingers, 1) - 1;
+    size_t completed_pingers = atomic_fetch_add(pinger->completed_pingers, 1) + 1;
     /*
     printf("%s -> %s: connection closed, remaining_pingers=%zu\n",
         zv_channel_get_local_addr_str(channel),
         zv_channel_get_peer_addr_str(channel),
-        remaining_pingers
+        (pinger->total_pingers - completed_pingers)
     );
     */
-    if (remaining_pingers == 0)
+    if (pinger->total_pingers == completed_pingers)
     {
         zv_loop_t * loop = zv_channel_get_loop(channel);
         zv_loop_stop(loop);
@@ -138,10 +146,14 @@ static void after_connect(zv_connector_t * connector, zv_socket_t sockfd)
             zv_channel_get_peer_addr_str(channel)
         );
         */
+        size_t connected_pingers = atomic_fetch_add(pinger->connected_pingers, 1) + 1;
+        if (pinger->total_pingers == connected_pingers)
+            printf("all %zu clients connected\n", pinger->total_pingers);
+
         gettimeofday(&pinger->start_time, NULL);
         zv_channel_start(channel);
 
-        zv_channel_send(channel, &PING, PING_SIZE);
+        zv_channel_send_sync(channel, &PING, PING_SIZE);
         zv_channel_release(channel);
     }
     else
@@ -155,7 +167,7 @@ static void after_connect(zv_connector_t * connector, zv_socket_t sockfd)
 
 static void after_connection_failure(zv_connector_t * connector, int err)
 {
-    printf("after_connection_failure\n");
+    fprintf(stderr, "after_connection_failure\n");
     abort();
 }
 
@@ -165,7 +177,7 @@ static void run_pingers(in_port_t server_port, int count)
     zv_loop_t * client_loop = zv_loop_create(NULL);
     if (client_loop == NULL)
     {
-        printf("zv_loop_create() failed\n");
+        fprintf(stderr, "zv_loop_create() failed\n");
         return;
     }
 
@@ -173,10 +185,11 @@ static void run_pingers(in_port_t server_port, int count)
     if (pingers != NULL)
     {
         struct sockaddr_in addr = make_sockaddr_in(INADDR_LOOPBACK, server_port);
-        _Atomic size_t remaining_pingers = count;
+        _Atomic size_t connected_pingers = 0;
+        _Atomic size_t completed_pingers = 0;
         for (int idx=0; idx<count; idx++)
         {
-            if (pinger_init(&pingers[idx], &remaining_pingers) == 0)
+            if (pinger_init(&pingers[idx], count, &connected_pingers, &completed_pingers) == 0)
             {
                 zv_connector_t * connector = zv_connector_create(
                     client_loop,
