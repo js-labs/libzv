@@ -111,7 +111,12 @@ static int _fdsets_init(
 
         if (sockfd_info->read_handler && !sockfd_info->pending_read)
         {
-    #if !defined(_WIN32)
+    #if defined(_WIN32)
+            if (fdsets->read.fd_count == FD_SETSIZE)
+                abort();
+    #else
+            if (sockfd >= FD_SETSIZE)
+                abort();
             if (sockfd > maxfd)
                 maxfd = sockfd;
     #endif
@@ -122,12 +127,16 @@ static int _fdsets_init(
         if (sockfd_info->write_handler)
         {
     #if defined(_WIN32)
+            if (fdsets->read.fd_count == FD_SETSIZE)
+                abort();
             // On Windows if we connect to the invalid address
             // then the socket never become writable,
             // but error reported via except fds
             if (sockfd_info->write_handler->event_type == zv_event_type_connect)
                 FD_SET(sockfd, &fdsets->except);
     #else
+            if (sockfd >= FD_SETSIZE)
+                abort();
             if (sockfd > maxfd)
                 maxfd = sockfd;
     #endif

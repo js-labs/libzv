@@ -204,6 +204,28 @@ static void * tcp_echo_server_sock_loop_thread_func(void * arg)
             zv_socket_t sockfd = accept(server->accept_fd, (struct sockaddr*) &peer_addr, &peer_addrlen);
             if (sockfd == -1)
                 fprintf(stderr, "accept() failed\n");
+#if defined(_WIN32)
+            else if (read_fds.fd_count == FD_SETSIZE)
+            {
+                fprintf(
+                    stderr,
+                    "reached maximum number of sockets (%d) for fd_set, closing connection.\n",
+                    FD_SETSIZE
+                );
+                zv_socket_close(sockfd);
+            }
+#else
+            else if (sockfd >= FD_SETSIZE)
+            {
+                fprintf(
+                    stderr,
+                    "accepted client socket %d is greater than maximum possible (%d) for 'fd_set', closing connection\n",
+                    sockfd,
+                    FD_SETSIZE
+                );
+                zv_socket_close(sockfd);
+            }
+#endif
             else
             {
                 struct sockaddr_in local_addr;
