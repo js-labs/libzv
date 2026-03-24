@@ -93,7 +93,7 @@ static void channel_input_handler(zv_channel_t * channel, const void * data, siz
             pinger->pongs++;
             struct timeval now;
             gettimeofday(&now, NULL);
-            uint32_t elapsed_time_ms = timeval_elapsed_time(&pinger->start_time, &now) / 1000;
+            long elapsed_time_ms = timeval_elapsed_time_us(&pinger->start_time, &now) / 1000;
             if (elapsed_time_ms > TIME_MS)
                 zv_channel_stop(channel);
             else

@@ -307,15 +307,13 @@ int run_timer_pool_test(int (*test_func)(zv_timer_pool_t*))
 }
 
 
-uint32_t timeval_elapsed_time(const struct timeval * start, const struct timeval * end)
+long timeval_elapsed_time_us(const struct timeval * start, const struct timeval * end)
 {
     // (end->tv_sec * C + end->tv_usec) - (start->tv_sec * C + start->tv_usec)
-    uint64_t ret = end->tv_sec;
-    ret -= start->tv_sec;
-    ret *= (1000 * 1000);
+    int64_t ret = (end->tv_sec - start->tv_sec) * 1000 * 1000;
     ret += end->tv_usec;
     ret -= start->tv_usec;
-    return (uint32_t) ret;
+    return (long) ret;
 }
 
 
@@ -328,6 +326,15 @@ void timeval_add_ms(struct timeval * tv, unsigned int ms)
         tv->tv_sec += (tv->tv_usec / us_in_sec);
         tv->tv_usec %= us_in_sec;
     }
+}
+
+
+long timespec_elapsed_time_us(const struct timespec * start, const struct timespec * end)
+{
+    int64_t ret = (end->tv_sec - start->tv_sec) * 1000 * 1000 * 1000;
+    ret += end->tv_nsec;
+    ret -= start->tv_nsec;
+    return (long) (ret / 1000);
 }
 
 

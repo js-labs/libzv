@@ -279,7 +279,7 @@ int main(int argc, const char * argv[])
     }
 
     struct test_s * test = test_create(sessions, messages, message_size);
-    if (test)
+    if (test != NULL)
     {
         struct sockaddr_in addr = make_sockaddr_in(INADDR_ANY, 0);
         zv_acceptor_t * acceptor = zv_acceptor_create(
@@ -298,7 +298,8 @@ int main(int argc, const char * argv[])
 
             for (size_t idx=0; idx<sessions; idx++)
             {
-                struct sender_thread_arg_s * sender_thread_arg = malloc(sizeof(struct sender_thread_arg_s));
+                struct sender_thread_arg_s * sender_thread_arg;
+                sender_thread_arg = malloc(sizeof(struct sender_thread_arg_s));
                 sender_thread_arg->id = idx;
                 sender_thread_arg->server_port = port;
                 sender_thread_arg->messages = messages;

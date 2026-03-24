@@ -43,11 +43,11 @@ zv_socket_t sock_connect(in_addr_t in_addr, in_port_t in_port);
 
 int run_timer_pool_test(int (*test_func)(zv_timer_pool_t*));
 
-uint32_t timeval_elapsed_time(const struct timeval * start, const struct timeval * end);
-
+long timeval_elapsed_time_us(const struct timeval * start, const struct timeval * end);
 void timeval_add_ms(struct timeval * tv, unsigned int ms);
-void timespec_add_ms(struct timespec * ts, unsigned int ms);
 
+long timespec_elapsed_time_us(const struct timespec * start, const struct timespec * end);
+void timespec_add_ms(struct timespec * ts, unsigned int ms);
 void timespec_now_adding_ms(struct timespec * ts, unsigned int ms);
 
 #endif /* !defined(ZV_TESTS_HELPERS_H) */
