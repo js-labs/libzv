@@ -48,7 +48,7 @@ static void tcp_echo_server_input_handler(
     const void * data,
     size_t size
 ) {
-    zv_channel_send(channel, data, size);
+    zv_channel_send_sync(channel, data, size);
 }
 
 

@@ -39,7 +39,7 @@ struct benchmark_s
 
 int benchmark_tcp_broadcast(int clients);
 int benchmark_tcp_echo_latency();
-int benchmark_tcp_ping_pong(int pingers, int use_libzv);
+int benchmark_tcp_ping_pongs(int pingers, int use_libzv);
 int benchmark_tcp_recv_throughput();
 int benchmark_thread_pool_latency();
 int benchmark_thread_pool_throughput();
@@ -47,20 +47,20 @@ int benchmark_udp_echo_latency();
 
 static int benchmark_tcp_broadcast_2() { return benchmark_tcp_broadcast(2); }
 static int benchmark_tcp_broadcast_10() { return benchmark_tcp_broadcast(10); }
-static int benchmark_tcp_ping_pong_1() { return benchmark_tcp_ping_pong(1, 1); }
-static int benchmark_tcp_ping_pong_10() { return benchmark_tcp_ping_pong(10, 1); }
-static int benchmark_tcp_ping_pong_sts_1() { return benchmark_tcp_ping_pong(1, 0); }
-static int benchmark_tcp_ping_pong_sts_10() { return benchmark_tcp_ping_pong(10, 0); }
+static int benchmark_tcp_ping_pongs_1() { return benchmark_tcp_ping_pongs(1, 1); }
+static int benchmark_tcp_ping_pongs_10() { return benchmark_tcp_ping_pongs(10, 1); }
+static int benchmark_tcp_ping_pongs_sts_1() { return benchmark_tcp_ping_pongs(1, 0); }
+static int benchmark_tcp_ping_pongs_sts_10() { return benchmark_tcp_ping_pongs(10, 0); }
 
 static struct benchmark_s benchmarks[] =
 {
     { "tcp_broadcast",          &benchmark_tcp_broadcast_2 },
     { "tcp_broadcast_10",       &benchmark_tcp_broadcast_10 },
     { "tcp_echo_latency",       &benchmark_tcp_echo_latency },
-    { "tcp_ping_pong_1",        &benchmark_tcp_ping_pong_1 },
-    { "tcp_ping_pong_10",       &benchmark_tcp_ping_pong_10 },
-    { "tcp_ping_pong_sts_1",    &benchmark_tcp_ping_pong_sts_1 },
-    { "tcp_ping_pong_sts_10",   &benchmark_tcp_ping_pong_sts_10 },
+    { "tcp_ping_pongs_1",       &benchmark_tcp_ping_pongs_1 },
+    { "tcp_ping_pongs_10",      &benchmark_tcp_ping_pongs_10 },
+    { "tcp_ping_pongs_sts_1",   &benchmark_tcp_ping_pongs_sts_1 },
+    { "tcp_ping_pongs_sts_10",  &benchmark_tcp_ping_pongs_sts_10 },
     { "thread_pool_latency",    &benchmark_thread_pool_latency },
     { "thread_pool_throughput", &benchmark_thread_pool_throughput },
     { "udp_echo_latency",       &benchmark_udp_echo_latency }

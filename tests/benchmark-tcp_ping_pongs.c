@@ -231,7 +231,7 @@ static void run_pingers(in_port_t server_port, int count)
 }
 
 
-int benchmark_tcp_ping_pong(int pingers, int use_libzv)
+int benchmark_tcp_ping_pongs(int pingers, int use_libzv)
 {
     int rc;
 
