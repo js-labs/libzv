@@ -54,11 +54,13 @@ static void tcp_echo_server_input_handler(
 
 static void tcp_echo_server_close_handler(zv_channel_t * channel)
 {
+    /*
     printf(
         "%s -> %s: connection closed\n",
         zv_channel_get_local_addr_str(channel),
         zv_channel_get_peer_addr_str(channel)
     );
+    */
 }
 
 
@@ -76,17 +78,18 @@ static void tcp_echo_server_accept_handler(zv_acceptor_t * acceptor, zv_socket_t
 
     if (channel == NULL)
     {
-        printf("zv_channel_create() failed\n");
+        fprintf(stderr, "zv_channel_create() failed\n");
         zv_socket_close(sockfd);
     }
     else
     {
+        /*
         printf(
             "%s -> %s: connection accepted\n",
             zv_channel_get_local_addr_str(channel),
             zv_channel_get_peer_addr_str(channel)
         );
-
+        */
         zv_channel_start(channel);
         zv_channel_release(channel);
     }
@@ -179,12 +182,13 @@ static void * tcp_echo_server_sock_loop_thread_func(void * arg)
                 }
                 else if (bytes_received == 0)
                 {
-                    // connection closed
+                    /*
                     printf(
                         "%s -> %s: connection closed\n",
                         client->local_addr_str,
                         client->peer_addr_str
                     );
+                    */
 #if defined(_WIN32)
                     closesocket(client->sockfd);
 #else
@@ -205,7 +209,7 @@ static void * tcp_echo_server_sock_loop_thread_func(void * arg)
             if (sockfd == -1)
                 fprintf(stderr, "accept() failed\n");
 #if defined(_WIN32)
-            else if (read_fds.fd_count == FD_SETSIZE)
+            else if ((zv_array_get_size(clients) + 2) == FD_SETSIZE)
             {
                 fprintf(
                     stderr,
@@ -246,11 +250,13 @@ static void * tcp_echo_server_sock_loop_thread_func(void * arg)
                         client->peer_addr_str,
                         sizeof(client->peer_addr_str)
                     );
+                    /*
                     printf(
                         "%s -> %s: connection accepted\n",
                         client->local_addr_str,
                         client->peer_addr_str
                     );
+                    */
                 }
                 else
                 {
