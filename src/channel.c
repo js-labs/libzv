@@ -130,7 +130,11 @@ static void _zv_channel_should_never_be_called(struct zv_thread_pool_task_s * ta
 }
 
 
+#if defined(_ZV_HAS_RDTSC)
+static void _zv_channel_read_task_i(struct zv_thread_pool_task_s * task)
+#else
 static void _zv_channel_read_task(struct zv_thread_pool_task_s * task)
+#endif
 {
     struct zv_channel_s * channel = _zv_channel_by_read_task(task);
 
@@ -302,6 +306,45 @@ static void _zv_channel_read_task(struct zv_thread_pool_task_s * task)
         _zv_loop_resume_handler(channel->loop, &channel->read_handler);
     }
 }
+
+
+#if defined(_ZV_HAS_RDTSC)
+static void _zv_channel_read_task(struct zv_thread_pool_task_s * task)
+{
+    struct zv_channel_s * channel = _zv_channel_by_read_task(task);
+    struct zv_event_handler_s * read_handler = &channel->read_handler;
+    uint64_t start_tsc = _zv_rdtsc();
+    uint64_t dispatch_tsc = read_handler->dispatch_tsc;
+    if (dispatch_tsc != 0)
+    {
+        uint64_t elapsed_ticks = (start_tsc - dispatch_tsc);
+        size_t dispatch_count = read_handler->dispatch_count;
+        uint64_t cc = ((read_handler->dispatch_avg_ticks * dispatch_count) + elapsed_ticks);
+        if (dispatch_count < 15)
+        {
+            dispatch_count++;
+            read_handler->dispatch_avg_ticks = (cc / dispatch_count);
+            read_handler->dispatch_count = dispatch_count;
+        }
+        else
+            read_handler->dispatch_avg_ticks = (cc >> 4);
+    }
+
+    _zv_channel_read_task_i(task);
+
+    uint64_t elapsed_ticks = (_zv_rdtsc() - start_tsc);
+    size_t read_count = read_handler->read_count;
+    uint64_t cc = ((read_handler->read_avg_ticks * read_count) + elapsed_ticks);
+    if (read_count < 15)
+    {
+        read_count++;
+        read_handler->read_avg_ticks = (cc / read_count);
+        read_handler->read_count = read_count;
+    }
+    else
+        read_handler->read_avg_ticks = (cc >> 4);
+}
+#endif /* defined(_ZV_HAS_RDTSC) */
 
 
 static void _zv_channel_write_task(struct zv_thread_pool_task_s * task)

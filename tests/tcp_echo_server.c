@@ -15,6 +15,7 @@
 #endif
 #include <errno.h>
 
+
 struct tcp_echo_server_zv_s
 {
     zv_loop_t * loop;
@@ -223,11 +224,12 @@ static void * tcp_echo_server_sock_loop_thread_func(void * arg)
             {
                 fprintf(
                     stderr,
-                    "accepted client socket %d is greater than maximum possible (%d) for 'fd_set', closing connection\n",
+                    "accepted client socket %d is greater than maximum possible "
+                    "(%d) for 'fd_set', closing connection\n",
                     sockfd,
                     FD_SETSIZE
                 );
-                zv_socket_close(sockfd);
+                abort();
             }
 #endif
             else

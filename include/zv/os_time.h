@@ -46,42 +46,6 @@ ZV_EXPORT int clock_gettime(clockid_t clockid, struct timespec *ts);
 #error Not supported
 #endif
 
-#if !defined(ZV_HAS_RDTSC)
-
-#if defined(_M_X64) || defined(__x86_64__)
-
-#if defined(_MSC_VER)
-
-#include <stdint.h>
-#define ZV_HAS_RDTSC 1
-
-static inline uint64_t zv_rdtsc() { return __rdtsc(); }
-
-#elif defined(__GNUC__)
-
-#include <stdint.h>
-#define ZV_HAS_RDTSC 1
-
-static inline uint64_t zv_rdtsc()
-{
-    uint32_t lo, hi;
-    __asm__ __volatile__("rdtsc" : "=a" (lo), "=d" (hi));
-    uint64_t ret = hi;
-    ret <<= 32;
-    ret |= lo;
-    return ret;
-}
-
-#else
-#error Not supported
-#endif
-#endif /* defined(_M_X64) || defined(__x86_64__) */
-#endif /* ZV_HAS_RDTSC */
-
-#if defined(ZV_HAS_RDTSC) && ZV_HAS_RDTSC
-ZV_EXPORT uint64_t zv_tsc_to_usec(uint64_t tsc);
-#endif
-
 ZV_EXPORT long zv_elapsed_time_us(const struct timespec * start, const struct timespec * end);
 
 #endif /* !defined(ZV_OS_TIME_H) */

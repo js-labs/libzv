@@ -167,7 +167,7 @@ static void after_connect(zv_connector_t * connector, zv_socket_t sockfd)
 
 static void after_connection_failure(zv_connector_t * connector, int err)
 {
-    fprintf(stderr, "after_connection_failure\n");
+    fprintf(stderr, "connection failure\n");
     abort();
 }
 
@@ -204,7 +204,7 @@ static void run_pingers(in_port_t server_port, int count)
                     zv_connector_start(connector);
                 else
                 {
-                    printf("zv_connector_create() failed\n");
+                    fprintf(stderr, "zv_connector_create() failed\n");
                     abort();
                 }
             }

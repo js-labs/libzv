@@ -52,6 +52,24 @@ zv_event_opcode_t;
 
 const char * zv_event_opcode_get_name(zv_event_opcode_t event_opcode);
 
+#if defined(__x86_64__) || defined(_M_X64) || defined(__i386__) || defined(_M_IX86)
+
+#define _ZV_HAS_RDTSC
+
+static inline uint64_t _zv_rdtsc(void)
+{
+#if defined(_MSC_VER)
+    return __rdtsc();
+#else
+    uint32_t lo, hi;
+    __asm__ volatile ("rdtsc" : "=a"(lo), "=d"(hi));
+    return ((uint64_t)hi << 32) | lo;
+#endif
+}
+
+#endif
+
+
 struct zv_event_handler_s
 {
     struct zv_event_handler_s * _Atomic next;
@@ -60,6 +78,13 @@ struct zv_event_handler_s
     char /*zv_event_type_t*/ event_type;
     char /*zv_event_opcode_t*/ opcode;
     struct zv_thread_pool_task_s task;
+#if defined(_ZV_HAS_RDTSC)
+    uint64_t dispatch_tsc;
+    uint64_t dispatch_avg_ticks;
+    size_t dispatch_count;
+    uint64_t read_avg_ticks;
+    size_t read_count;
+#endif
 };
 
 static inline void _zv_event_handler_init(
@@ -74,18 +99,25 @@ static inline void _zv_event_handler_init(
     handler->event_type = event_type;
     handler->opcode = opcode;
     zv_thread_pool_task_init(&handler->task, task_func);
+#if defined(_ZV_HAS_RDTSC)
+    handler->dispatch_tsc = 0;
+    handler->dispatch_avg_ticks = 0;
+    handler->dispatch_count = 0;
+    handler->read_avg_ticks = 0;
+    handler->read_count = 0;
+#endif
 }
 
 struct zv_loop_s
 {
+    struct zv_loop_config_s config;
+    zv_thread_pool_t * thread_pool;
+    zv_timer_pool_t * timer_pool;
+
     enum zv_loop_type_e (*get_type)(struct zv_loop_s * loop);
     void (*run)(struct zv_loop_s * loop);
     void (*wakeup)(struct zv_loop_s * loop);
     void (*deinit)(struct zv_loop_s * loop);
-
-    struct zv_loop_config_s config;
-    zv_thread_pool_t * thread_pool;
-    zv_timer_pool_t * timer_pool;
 
     struct zv_event_handler_s * _Atomic head;
     char _padding1[64 - sizeof(void*)];

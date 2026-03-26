@@ -158,7 +158,9 @@ static void _zv_loop_select_process_fdsets(
     struct fdsets_s * fdsets,
     buffer_set_t * sockets,
     zv_thread_pool_t * thread_pool,
-    int * readers
+    int * readers,
+    size_t * sync_reads,
+    size_t * async_reads
 ) {
     buffer_set_iterator_t * it = buffer_set_begin(sockets);
     buffer_set_iterator_t * it_end = buffer_set_end(sockets);
@@ -174,7 +176,23 @@ static void _zv_loop_select_process_fdsets(
         {
             struct zv_event_handler_s * read_handler = sockfd_info->read_handler;
             sockfd_info->pending_read = 1;
+        #if defined(_ZV_HAS_RDTSC)
+            if ((read_handler->dispatch_count >= 10) &&
+                (read_handler->dispatch_avg_ticks > read_handler->read_avg_ticks))
+            {
+                read_handler->dispatch_tsc = 0;
+                read_handler->task.func(&read_handler->task);
+                (*sync_reads)++;
+            }
+            else
+            {
+                read_handler->dispatch_tsc = _zv_rdtsc();
+                zv_thread_pool_dispatch(thread_pool, &read_handler->task);
+                (*async_reads)++;
+            }
+        #else
             zv_thread_pool_dispatch(thread_pool, &read_handler->task);
+        #endif
             (*readers)++;
         }
 
@@ -286,6 +304,9 @@ static void _zv_loop_select_run(struct zv_loop_s * loop)
     int readers = 0;
     int stop = 0;
 
+    size_t sync_reads = 0;
+    size_t async_reads = 0;
+
     struct zv_event_handler_s * remove_handlers = NULL;
 
     for (;;)
@@ -294,7 +315,7 @@ static void _zv_loop_select_run(struct zv_loop_s * loop)
         int fds_ready = select(nfds, &fdsets.read, &fdsets.write, &fdsets.except, ((readers > 0) ? &timeout : NULL));
         //printf("fds_ready=%d readers=%d\n", fds_ready, readers);
 
-        _zv_loop_select_process_fdsets(&fdsets, sockets, loop->thread_pool, &readers);
+        _zv_loop_select_process_fdsets(&fdsets, sockets, loop->thread_pool, &readers, &sync_reads, &async_reads);
 
         if (FD_ISSET(impl->wakeup_pipe[0], &fdsets.read))
         {
@@ -419,7 +440,12 @@ static void _zv_loop_select_run(struct zv_loop_s * loop)
 
     buffer_set_destroy(sockets);
 
-    ZV_LOG_DEBUG(_zv_loop_log, "0x%" PRIxPTR ": run done", loop);
+    ZV_LOG_DEBUG(
+        _zv_loop_log,
+        "select_run: done (sync reads: %zu, async reads: %zu)",
+        sync_reads,
+        async_reads
+    );
 }
 
 
