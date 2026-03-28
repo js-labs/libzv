@@ -78,14 +78,8 @@ struct zv_event_handler_s
     char /*zv_event_type_t*/ event_type;
     char /*zv_event_opcode_t*/ opcode;
     struct zv_thread_pool_task_s task;
-#if defined(_ZV_HAS_RDTSC)
-    uint64_t dispatch_tsc;
-    uint64_t dispatch_avg_ticks;
-    size_t dispatch_count;
-    uint64_t read_avg_ticks;
-    size_t read_count;
-#endif
 };
+
 
 static inline void _zv_event_handler_init(
     struct zv_event_handler_s * handler,
@@ -99,14 +93,62 @@ static inline void _zv_event_handler_init(
     handler->event_type = event_type;
     handler->opcode = opcode;
     zv_thread_pool_task_init(&handler->task, task_func);
-#if defined(_ZV_HAS_RDTSC)
-    handler->dispatch_tsc = 0;
-    handler->dispatch_avg_ticks = 0;
-    handler->dispatch_count = 0;
-    handler->read_avg_ticks = 0;
-    handler->read_count = 0;
-#endif
 }
+
+
+#if defined(_ZV_HAS_RDTSC)
+
+struct zv_cavg_s
+{
+    uint64_t cavg;
+    size_t count;
+};
+
+static inline void _zv_cavg_init(struct zv_cavg_s * cavg)
+{
+    cavg->cavg = 0;
+    cavg->count = 0;
+}
+
+static inline void _zv_cavg_append(struct zv_cavg_s * cavg, uint64_t value)
+{
+    size_t count = cavg->count;
+    uint64_t cc = ((cavg->cavg * count) + value);
+    if (count < 15)
+    {
+        count++;
+        cavg->cavg = (cc / count);
+        cavg->count = count;
+    }
+    else
+        cavg->cavg = (cc >> 4);
+}
+
+struct zv_channel_read_stats_s
+{
+    uint64_t dispatch_tsc;
+    struct zv_cavg_s dispatch;
+    struct zv_cavg_s read;
+    size_t total_reads;
+    size_t async_reads;
+};
+
+static inline void _zv_channel_read_stats_init(
+    struct zv_channel_read_stats_s * read_stats
+) {
+    read_stats->dispatch_tsc = 0;
+    _zv_cavg_init(&read_stats->dispatch);
+    _zv_cavg_init(&read_stats->read);
+    read_stats->total_reads = 0;
+    read_stats->async_reads = 0;
+}
+
+void _zv_channel_read(
+    struct zv_event_handler_s * read_handler,
+    struct zv_thread_pool_s * thread_pool
+);
+
+#endif /* !defined(_ZV_HAS_RDTSC) */
 
 struct zv_loop_s
 {

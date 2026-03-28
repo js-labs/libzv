@@ -225,9 +225,6 @@ static void _zv_loop_poll_run(struct zv_loop_s * loop)
     size_t readers = 0;
     int stop = 0;
 
-    size_t sync_reads = 0;
-    size_t async_reads = 0;
-
     for (;;)
     {
 #if defined(_WIN32)
@@ -302,19 +299,10 @@ static void _zv_loop_poll_run(struct zv_loop_s * loop)
                     sockfd_info->pending_read = 1;
                     struct zv_event_handler_s * read_handler = sockfd_info->read_handler;
                 #if defined(_ZV_HAS_RDTSC)
-                    if ((read_handler->dispatch_count >= 10) &&
-                        (read_handler->dispatch_avg_ticks > read_handler->read_avg_ticks))
-                    {
-                        read_handler->dispatch_tsc = 0;
-                        read_handler->task.func(&read_handler->task);
-                        sync_reads++;
-                    }
+                    if (sockfd_info->read_handler->event_type == zv_event_type_read)
+                        _zv_channel_read(read_handler, thread_pool);
                     else
-                    {
-                        read_handler->dispatch_tsc = _zv_rdtsc();
                         zv_thread_pool_dispatch(thread_pool, &read_handler->task);
-                        async_reads++;
-                    }
                 #else
                     zv_thread_pool_dispatch(thread_pool, &read_handler->task);
                 #endif
@@ -541,12 +529,7 @@ static void _zv_loop_poll_run(struct zv_loop_s * loop)
     _zv_pollfd_array_deinit(&pollfd_array);
     buffer_set_destroy(sockets);
 
-    ZV_LOG_DEBUG(
-        _zv_loop_log,
-        "poll_run: done (sync reads: %zu, async reads: %zu)",
-        sync_reads,
-        async_reads
-    );
+    ZV_LOG_DEBUG(_zv_loop_log, "poll_run: done");
 }
 
 

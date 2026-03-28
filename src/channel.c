@@ -73,6 +73,9 @@ struct zv_channel_s
     _Atomic size_t retain_count;
 
     struct zv_event_handler_s read_handler;
+#if defined(_ZV_HAS_RDTSC)
+    struct zv_channel_read_stats_s read_stats;
+#endif
     struct zv_channel_in_queue_s in_queue;
 
     struct zv_event_handler_s write_handler;
@@ -309,40 +312,46 @@ static void _zv_channel_read_task(struct zv_thread_pool_task_s * task)
 
 
 #if defined(_ZV_HAS_RDTSC)
+
+void _zv_channel_read(
+    struct zv_event_handler_s * read_handler,
+    struct zv_thread_pool_s * thread_pool
+) {
+    size_t offs = offsetof(struct zv_channel_s, read_handler);
+    struct zv_channel_s * channel = (struct zv_channel_s*) (((char*)read_handler) - offs);
+    struct zv_channel_read_stats_s * read_stats = &channel->read_stats;
+    if ((read_stats->dispatch.count >= 10) &&
+        (read_stats->dispatch.cavg > read_stats->read.cavg))
+    {
+        read_stats->dispatch_tsc = 0;
+        read_handler->task.func(&read_handler->task);
+    }
+    else
+    {
+        read_stats->dispatch_tsc = _zv_rdtsc();
+        zv_thread_pool_dispatch(thread_pool, &read_handler->task);
+    }
+}
+
 static void _zv_channel_read_task(struct zv_thread_pool_task_s * task)
 {
     struct zv_channel_s * channel = _zv_channel_by_read_task(task);
-    struct zv_event_handler_s * read_handler = &channel->read_handler;
+    struct zv_channel_read_stats_s * read_stats = &channel->read_stats;
     uint64_t start_tsc = _zv_rdtsc();
-    uint64_t dispatch_tsc = read_handler->dispatch_tsc;
+    read_stats->total_reads++;
+
+    uint64_t dispatch_tsc = read_stats->dispatch_tsc;
     if (dispatch_tsc != 0)
     {
         uint64_t elapsed_ticks = (start_tsc - dispatch_tsc);
-        size_t dispatch_count = read_handler->dispatch_count;
-        uint64_t cc = ((read_handler->dispatch_avg_ticks * dispatch_count) + elapsed_ticks);
-        if (dispatch_count < 15)
-        {
-            dispatch_count++;
-            read_handler->dispatch_avg_ticks = (cc / dispatch_count);
-            read_handler->dispatch_count = dispatch_count;
-        }
-        else
-            read_handler->dispatch_avg_ticks = (cc >> 4);
+        _zv_cavg_append(&read_stats->dispatch, elapsed_ticks);
+        read_stats->async_reads++;
     }
 
     _zv_channel_read_task_i(task);
 
     uint64_t elapsed_ticks = (_zv_rdtsc() - start_tsc);
-    size_t read_count = read_handler->read_count;
-    uint64_t cc = ((read_handler->read_avg_ticks * read_count) + elapsed_ticks);
-    if (read_count < 15)
-    {
-        read_count++;
-        read_handler->read_avg_ticks = (cc / read_count);
-        read_handler->read_count = read_count;
-    }
-    else
-        read_handler->read_avg_ticks = (cc >> 4);
+    _zv_cavg_append(&read_stats->read, elapsed_ticks);
 }
 #endif /* defined(_ZV_HAS_RDTSC) */
 
@@ -539,6 +548,10 @@ zv_channel_t * zv_channel_create(
         &_zv_channel_read_task
     );
 
+#if defined(_ZV_HAS_RDTSC)
+    _zv_channel_read_stats_init(&channel->read_stats);
+#endif
+
     // Both inbound and outbound queues use the same buffer cache,
     // but we could retain it only once.
     zv_buffer_cache_retain(buffer_cache);
@@ -694,8 +707,18 @@ void zv_channel_release(zv_channel_t * channel)
     size_t retain_count = atomic_fetch_sub(&channel->retain_count, 1) - 1;
     if (retain_count == 0)
     {
+    #if defined(_ZV_HAS_RDTSC)
+        ZV_LOG_DEBUG(
+            _zv_channel_log,
+            "0x%" PRIxPTR ": deinit, total_reads=%zu, async_reads=%zu",
+            (intptr_t) channel,
+            channel->read_stats.total_reads,
+            channel->read_stats.async_reads
+        );
+    #else
+        ZV_LOG_DEBUG(_zv_channel_log, "0x%" PRIxPTR ": deinit", (intptr_t) channel);
+    #endif
         zv_socket_t sockfd = channel->read_handler.sockfd;
-        ZV_LOG_DEBUG(_zv_channel_log, "0x%" PRIxPTR ": deinit", channel);
         zv_socket_close(sockfd);
         zv_channel_out_queue_deinit(&channel->out_queue);
         zv_channel_in_queue_deinit(&channel->in_queue);
