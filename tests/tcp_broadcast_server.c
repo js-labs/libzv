@@ -46,7 +46,6 @@ static void server_remove_client_channel(
             if ((idx + 1) < count)
                  server->channels[idx] = server->channels[count - 1];
             zv_array_pop(server->channels);
-            count;
             break;
         }
     }

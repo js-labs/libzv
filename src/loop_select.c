@@ -438,7 +438,8 @@ static void _zv_loop_select_wakeup(struct zv_loop_s * loop)
     send(impl->wakeup_pipe[1], &c, sizeof(c), 0);
 #else
     ssize_t rc = write(impl->wakeup_pipe[1], &c, sizeof(c));
-    (rc);
+    assert(rc == sizeof(c));
+    (void)(rc);
 #endif
 }
 

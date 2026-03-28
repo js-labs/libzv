@@ -9,6 +9,8 @@
 #include <fcntl.h>
 #endif
 
+#include <assert.h>
+
 struct udp_echo_server_zv_s
 {
     zv_loop_t * loop;
@@ -236,7 +238,8 @@ void udp_echo_server_stop_and_destroy(udp_echo_server_t * server)
         send(server->sock.cmd_pipe[1], &cmd, sizeof(cmd), 0);
 #else
         ssize_t rc = write(server->sock.cmd_pipe[1], &cmd, sizeof(cmd));
-        (rc);
+        assert(rc == sizeof(cmd));
+        (void)(rc);
 #endif
     }
 

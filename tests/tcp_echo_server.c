@@ -13,8 +13,8 @@
 #include <sys/select.h>
 #include <unistd.h>
 #endif
+#include <assert.h>
 #include <errno.h>
-
 
 struct tcp_echo_server_zv_s
 {
@@ -471,7 +471,8 @@ void tcp_echo_server_stop_and_destroy(tcp_echo_server_t * server)
         send(server->sock.cmd_pipe[1], &cmd, sizeof(cmd), 0);
     #else
         ssize_t rc = write(server->sock.cmd_pipe[1], &cmd, sizeof(cmd));
-        (rc);
+        assert(rc == sizeof(cmd));
+        (void)(rc);
     #endif
     }
 
