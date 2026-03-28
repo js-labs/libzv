@@ -329,15 +329,6 @@ void timeval_add_ms(struct timeval * tv, unsigned int ms)
 }
 
 
-long timespec_elapsed_time_us(const struct timespec * start, const struct timespec * end)
-{
-    int64_t ret = (end->tv_sec - start->tv_sec) * 1000 * 1000 * 1000;
-    ret += end->tv_nsec;
-    ret -= start->tv_nsec;
-    return (long) (ret / 1000);
-}
-
-
 void timespec_add_ms(struct timespec * ts, unsigned int ms)
 {
     const long ns_in_sec = (1000 * 1000 * 1000);

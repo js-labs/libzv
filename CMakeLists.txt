@@ -17,7 +17,6 @@ set(LIB_SRCS
     include/zv/export.h
     include/zv/log.h
     include/zv/loop.h
-    include/zv/os_compat.h
     include/zv/os_socket.h
     include/zv/os_thread.h
     include/zv/os_time.h
@@ -41,7 +40,6 @@ set(LIB_SRCS
     src/loop_poll.c
     src/loop_select.c
     src/misc.h
-    src/os_compat.c
     src/os_socket.c
     src/os_thread.c
     src/os_time.c

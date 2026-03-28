@@ -46,7 +46,6 @@ int run_timer_pool_test(int (*test_func)(zv_timer_pool_t*));
 long timeval_elapsed_time_us(const struct timeval * start, const struct timeval * end);
 void timeval_add_ms(struct timeval * tv, unsigned int ms);
 
-long timespec_elapsed_time_us(const struct timespec * start, const struct timespec * end);
 void timespec_add_ms(struct timespec * ts, unsigned int ms);
 void timespec_now_adding_ms(struct timespec * ts, unsigned int ms);
 

@@ -2,7 +2,6 @@
 #include "zv/array.h"
 #include "zv/buffer.h"
 #include "zv/channel.h"
-#include "zv/os_compat.h"
 #include "helpers.h"
 #include "tcp_broadcast_server.h"
 

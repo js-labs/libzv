@@ -21,7 +21,6 @@
 
 #include "buffer_set/buffer_set.h"
 #include "zv/loop.h"
-#include "zv/os_compat.h"
 #include <assert.h>
 
 #include "loop_int.h"
@@ -564,8 +563,13 @@ static void _zv_loop_poll_deinit(struct zv_loop_s * loop)
 
 struct zv_loop_s * _zv_loop_create_poll(const struct zv_loop_config_s * config)
 {
-    zv_socket_t wakeup_pipe[2];
-    int rc = zv_pipe(wakeup_pipe);
+#if defined(_WIN32)
+    SOCKET wakeup_pipe[2];
+    int rc = socketpair(AF_INET, SOCK_STREAM, IPPROTO_TCP, wakeup_pipe);
+#else
+    int wakeup_pipe[2];
+    int rc = pipe(wakeup_pipe);
+#endif
     if (rc != 0)
         return NULL;
 

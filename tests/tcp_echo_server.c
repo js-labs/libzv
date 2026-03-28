@@ -2,7 +2,6 @@
 #include "zv/array.h"
 #include "zv/buffer.h"
 #include "zv/channel.h"
-#include "zv/os_compat.h"
 #include "helpers.h"
 #include "tcp_echo_server.h"
 
@@ -359,13 +358,23 @@ static int tcp_echo_server_sock_init(
     struct tcp_echo_server_s * server,
     in_port_t * port
 ) {
-    zv_socket_t cmd_pipe[2];
-    int rc = zv_pipe(cmd_pipe);
+#if defined(_WIN32)
+    SOCKET cmd_pipe[2];
+    int rc = socketpair(AF_INET, SOCK_STREAM, IPPROTO_TCP, cmd_pipe);
     if (rc != 0)
     {
-        fprintf(stderr, "zv_pipe() failed\n");
+        fprintf(stderr, "socketpair() failed\n");
         return rc;
     }
+#else
+    int cmd_pipe[2];
+    int rc = pipe(cmd_pipe);
+    if (rc != 0)
+    {
+        fprintf(stderr, "pipe() failed\n");
+        return rc;
+    }
+#endif
 
     zv_socket_t sockfd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     if (sockfd != INVALID_SOCKET)

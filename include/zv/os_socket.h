@@ -61,4 +61,8 @@ ZV_EXPORT const char * zv_inet_ntop(
     size_t buffer_size
 );
 
+#if defined(_WIN32)
+ZV_EXPORT int socketpair(int domain, int type, int protocol, SOCKET sv[2]);
+#endif
+
 #endif /* !defined(ZV_OS_SOCKET_H) */
