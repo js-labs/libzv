@@ -51,18 +51,14 @@ struct zv_acceptor_stop_s
     void * after_stop_arg;
 };
 
-static inline struct zv_acceptor_s * _zv_acceptor_by_task(struct zv_thread_pool_task_s * task)
-{
-    size_t offs = offsetof(struct zv_acceptor_s, handler);
-    offs += offsetof(struct zv_event_handler_s, task);
-    char * ptr = ((char*)task);
-    ptr -= offs;
-    return (struct zv_acceptor_s*) ptr;
-}
-
 static void _zv_acceptor_accept_task(struct zv_thread_pool_task_s * task)
 {
-    struct zv_acceptor_s * acceptor = _zv_acceptor_by_task(task);
+    struct zv_acceptor_s * acceptor = _ZV_CONTAINER_OF(
+        _ZV_CONTAINER_OF(task, struct zv_event_handler_s, task),
+        struct zv_acceptor_s,
+        handler
+    );
+
     for (;;)
     {
         zv_socket_t sockfd = accept(acceptor->handler.sockfd, NULL, NULL);
@@ -231,19 +227,13 @@ int zv_acceptor_start(zv_acceptor_t * acceptor)
 }
 
 
-static inline struct zv_acceptor_stop_s * _zv_acceptor_stop_by_task(struct zv_thread_pool_task_s * task)
-{
-    size_t offs = offsetof(struct zv_acceptor_stop_s, handler);
-    offs += offsetof(struct zv_event_handler_s, task);
-    char * ptr = ((char*)task);
-    ptr -= offs;
-    return (struct zv_acceptor_stop_s*) ptr;
-}
-
-
 static void _zv_acceptor_remove_task(struct zv_thread_pool_task_s * task)
 {
-    struct zv_acceptor_stop_s * acceptor_stop = _zv_acceptor_stop_by_task(task);
+    struct zv_acceptor_stop_s * acceptor_stop = _ZV_CONTAINER_OF(
+        _ZV_CONTAINER_OF(task, struct zv_event_handler_s, task),
+        struct zv_acceptor_stop_s,
+        handler
+    );
     zv_acceptor_t * acceptor = acceptor_stop->acceptor;
     void (*after_stop)(zv_acceptor_t*, void*) = acceptor_stop->after_stop;
     void * after_stop_arg = acceptor_stop->after_stop_arg;

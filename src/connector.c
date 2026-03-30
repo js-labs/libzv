@@ -66,19 +66,13 @@ struct sockaddr * _zv_connector_get_addr(struct zv_connector_s * connector)
 }
 
 
-static inline struct zv_connector_s * _zv_connector_by_task(struct zv_thread_pool_task_s * task)
-{
-    size_t offs = offsetof(struct zv_connector_s, handler);
-    offs += offsetof(struct zv_event_handler_s, task);
-    char * ptr = ((char*)task);
-    ptr -= offs;
-    return (struct zv_connector_s*) ptr;
-}
-
-
 static void _zv_connector_connect_task(struct zv_thread_pool_task_s * task)
 {
-    struct zv_connector_s * connector = _zv_connector_by_task(task);
+    struct zv_connector_s * connector = _ZV_CONTAINER_OF(
+        _ZV_CONTAINER_OF(task, struct zv_event_handler_s, task),
+        struct zv_connector_s,
+        handler
+    );
     zv_socket_t sockfd = connector->handler.sockfd;
 
     int sockerr;
@@ -102,7 +96,11 @@ static void _zv_connector_connect_task(struct zv_thread_pool_task_s * task)
 
 static void _zv_connector_init_task(struct zv_thread_pool_task_s * task)
 {
-    struct zv_connector_s * connector = _zv_connector_by_task(task);
+    struct zv_connector_s * connector = _ZV_CONTAINER_OF(
+        _ZV_CONTAINER_OF(task, struct zv_event_handler_s, task),
+        struct zv_connector_s,
+        handler
+    );
     struct sockaddr * addr = _zv_connector_get_addr(connector);
 
     zv_socket_t sockfd = socket(addr->sa_family, SOCK_STREAM, IPPROTO_TCP);

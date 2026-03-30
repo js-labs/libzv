@@ -234,8 +234,7 @@ static void _zv_timer_pool_process_timers(
 
 static void _zv_timer_pool_worker(struct zv_thread_pool_task_s * task)
 {
-    size_t offs = offsetof(struct zv_timer_pool_s, task);
-    struct zv_timer_pool_s * timer_pool = (void*) (((char*)task) - offs);
+    struct zv_timer_pool_s * timer_pool = _ZV_CONTAINER_OF(task, struct zv_timer_pool_s, task);
     pthread_mutex_lock(&timer_pool->mutex);
     for (;;)
     {

@@ -87,23 +87,25 @@ struct zv_channel_s
 };
 
 
-static inline struct zv_channel_s * _zv_channel_by_read_task(struct zv_thread_pool_task_s * task)
-{
-    size_t offs = offsetof(struct zv_channel_s, read_handler);
-    offs += offsetof(struct zv_event_handler_s, task);
-    char * ptr = ((char*)task);
-    ptr -= offs;
-    return (struct zv_channel_s*) ptr;
+static inline struct zv_channel_s * _zv_channel_by_read_task(
+    struct zv_thread_pool_task_s * task
+) {
+    return _ZV_CONTAINER_OF(
+        _ZV_CONTAINER_OF(task, struct zv_event_handler_s, task),
+        struct zv_channel_s,
+        read_handler
+    );
 }
 
 
-static inline struct zv_channel_s * _zv_channel_by_write_task(struct zv_thread_pool_task_s * task)
-{
-    size_t offs = offsetof(struct zv_channel_s, write_handler);
-    offs += offsetof(struct zv_event_handler_s, task);
-    char * ptr = ((char*)task);
-    ptr -= offs;
-    return (struct zv_channel_s*) ptr;
+static inline struct zv_channel_s * _zv_channel_by_write_task(
+    struct zv_thread_pool_task_s * task
+) {
+    return _ZV_CONTAINER_OF(
+        _ZV_CONTAINER_OF(task, struct zv_event_handler_s, task),
+        struct zv_channel_s,
+        write_handler
+    );
 }
 
 
@@ -317,8 +319,7 @@ void _zv_channel_read(
     struct zv_event_handler_s * read_handler,
     struct zv_thread_pool_s * thread_pool
 ) {
-    size_t offs = offsetof(struct zv_channel_s, read_handler);
-    struct zv_channel_s * channel = (struct zv_channel_s*) (((char*)read_handler) - offs);
+    struct zv_channel_s * channel = _ZV_CONTAINER_OF(read_handler, struct zv_channel_s, read_handler);
     struct zv_channel_read_stats_s * read_stats = &channel->read_stats;
     if ((read_stats->dispatch.count >= 10) &&
         (read_stats->dispatch.cavg > read_stats->read.cavg))
@@ -608,20 +609,13 @@ void zv_channel_start(zv_channel_t * channel)
 }
 
 
-static inline struct zv_channel_stop_read_s * _zv_channel_stop_read_by_task(
-    struct zv_thread_pool_task_s * task
-) {
-    size_t offs = offsetof(struct zv_channel_stop_read_s, handler);
-    offs += offsetof(struct zv_event_handler_s, task);
-    char * ptr = ((char*)task);
-    ptr -= offs;
-    return (struct zv_channel_stop_read_s*) ptr;
-}
-
-
 static void _zv_channel_stop_task(struct zv_thread_pool_task_s * task)
 {
-    struct zv_channel_stop_read_s * stop_read = _zv_channel_stop_read_by_task(task);
+    struct zv_channel_stop_read_s * stop_read = _ZV_CONTAINER_OF(
+        _ZV_CONTAINER_OF(task, struct zv_event_handler_s, task),
+        struct zv_channel_stop_read_s,
+        handler
+    );
     struct zv_channel_s * channel = stop_read->channel;
     free(stop_read);
 
