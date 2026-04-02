@@ -67,6 +67,17 @@ static inline uint64_t _zv_rdtsc(void)
 #endif
 }
 
+#elif defined(__APPLE__)
+
+#include <mach/mach_time.h>
+#define _ZV_HAS_RDTSC
+
+static inline uint64_t _zv_rdtsc(void)
+{
+    //return clock_gettime_nsec_np(CLOCK_MONOTONIC_RAW);
+    return mach_absolute_time();
+}
+
 #endif
 
 

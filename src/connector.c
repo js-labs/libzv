@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 2022 Sergey Zubarev, info@js-labs.org
  *
- * This file is a part of UIO framework.
+ * This file is a part of ZV framework.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
