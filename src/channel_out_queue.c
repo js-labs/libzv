@@ -24,6 +24,7 @@
 #if defined(_WIN32)
 #include <limits.h>
 #elif defined(__linux__) || defined(__APPLE__)
+#include <stdint.h>
 #include <string.h>
 #endif
 
