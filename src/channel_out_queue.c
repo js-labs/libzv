@@ -24,7 +24,6 @@
 #if defined(_WIN32)
 #include <limits.h>
 #elif defined(__linux__) || defined(__APPLE__)
-#include <stdint.h>
 #include <string.h>
 #endif
 
@@ -69,47 +68,54 @@ static size_t _zv_channel_out_queue_add_data(
     size_t size
 ) {
     const size_t buffer_size = zv_buffer_cache_get_buffer_size(out_queue->buffer_cache);
-    const size_t ONE = 1;
+    union state_u
+    {
+        struct state_s
+        {
 #if defined(_LP64) || defined(__LP64__) || defined(_M_X64)
-    const int OFFS_BITS = 26;
-    const int WRITERS_BITS = 6;
+            unsigned int offs : 26;
+            unsigned int start_offs : 26;
+            unsigned int writers : 6;
 #else
-    const int OFFS_BITS = 14;
-    const int WRITERS_BITS = 2;
+            unsigned int offs : 14;
+            unsigned int start_offs : 14;
+            unsigned int writers : 3;
 #endif
-    const size_t OFFS_MASK = ((ONE << OFFS_BITS) - 1);
-    const size_t WRITER = (ONE << (OFFS_BITS * 2));
-    const size_t WRITERS_MASK = (((ONE << WRITERS_BITS) - 1) << (OFFS_BITS * 2));
-    const size_t TAIL_LOCK = (ONE << (OFFS_BITS * 2 + WRITERS_BITS));
+            unsigned int lock : 1;
+        }
+        as_struct;
+        size_t as_uint;
+    };
 
-    size_t state = atomic_load(&out_queue->add_state);
+    union state_u state = { .as_uint = atomic_load(&out_queue->add_state) };
     for (;;)
     {
-        if (state & TAIL_LOCK)
+        if (state.as_struct.lock)
         {
             _zv_atomic_wait();
-            state = atomic_load(&out_queue->add_state);
+            state.as_uint = atomic_load(&out_queue->add_state);
             continue;
         }
 
-        size_t offs = (state & OFFS_MASK);
+        size_t offs = state.as_struct.offs;
         size_t space = (buffer_size - offs);
         if (size > space)
         {
-            if (state & WRITERS_MASK)
+            if (state.as_struct.writers > 0)
             {
                 _zv_atomic_wait();
-                state = atomic_load(&out_queue->add_state);
+                state.as_uint = atomic_load(&out_queue->add_state);
                 continue;
             }
 
-            size_t new_state = (state | TAIL_LOCK);
-            if (!atomic_compare_exchange_strong(&out_queue->add_state, &state, new_state))
+            union state_u new_state = state;
+            new_state.as_struct.lock = 1;
+            if (!atomic_compare_exchange_strong(&out_queue->add_state, &state.as_uint, new_state.as_uint))
                 continue;
 
             if (space > 0)
             {
-                void* dst = ((char*)(out_queue->tail + 1)) + offs;
+                void * dst = ((char*)(out_queue->tail + 1)) + offs;
                 memcpy(dst, data, space);
                 data = ((const char*)data) + space;
             }
@@ -132,28 +138,29 @@ static size_t _zv_channel_out_queue_add_data(
             }
 
             out_queue->tail = buffer;
-            atomic_store(&out_queue->add_state, bytes);
+            new_state.as_uint = 0;
+            new_state.as_struct.offs = (unsigned int) bytes;
+            atomic_store(&out_queue->add_state, new_state.as_uint);
             return size;
         }
 
-        size_t writers = (state & WRITERS_MASK);
-        if (writers == WRITERS_MASK)
+        const size_t max_writers = ((struct state_s){.writers = ~0}).writers;
+        size_t writers = state.as_struct.writers;
+        if (writers == max_writers)
         {
             _zv_atomic_wait();
-            state = atomic_load(&out_queue->add_state);
+            state.as_uint = atomic_load(&out_queue->add_state);
             continue;
         }
 
-        size_t new_state = state;
+        union state_u new_state = state;
         if (writers == 0)
-        {
-            size_t start_offs = (offs << OFFS_BITS);
-            new_state |= start_offs;
-        }
-        new_state += size;
-        new_state += WRITER;
+            new_state.as_struct.start_offs = (unsigned int) offs;
 
-        if (!atomic_compare_exchange_strong(&out_queue->add_state, &state, new_state))
+        new_state.as_struct.offs += (unsigned int) size;
+        new_state.as_struct.writers++;
+
+        if (!atomic_compare_exchange_strong(&out_queue->add_state, &state.as_uint, new_state.as_uint))
             continue;
 
         void * dst = ((char*)(out_queue->tail + 1)) + offs;
@@ -162,24 +169,23 @@ static size_t _zv_channel_out_queue_add_data(
         state = new_state;
         for (;;)
         {
-            new_state = (state - WRITER);
-            size_t start_offs = ((state >> OFFS_BITS) & OFFS_MASK);
-            if ((new_state & WRITERS_MASK) == 0)
+            size_t start_offs = new_state.as_struct.start_offs;
+            new_state.as_struct.writers--;
+            if (new_state.as_struct.writers == 0)
             {
-                new_state &= ~(OFFS_MASK << OFFS_BITS);
-                if (atomic_compare_exchange_strong(&out_queue->add_state, &state, new_state))
-                    return ((new_state & OFFS_MASK) - start_offs);
+                new_state.as_struct.start_offs = 0;
+                if (atomic_compare_exchange_strong(&out_queue->add_state, &state.as_uint, new_state.as_uint))
+                    return (new_state.as_struct.offs - start_offs);
             }
             else if (offs == start_offs)
             {
-                new_state &= ~(OFFS_MASK << OFFS_BITS);
-                new_state |= ((offs + size) << OFFS_BITS);
-                if (atomic_compare_exchange_strong(&out_queue->add_state, &state, new_state))
+                new_state.as_struct.start_offs = (unsigned int) (offs + size);
+                if (atomic_compare_exchange_strong(&out_queue->add_state, &state.as_uint, new_state.as_uint))
                     return size;
             }
             else
             {
-                if (atomic_compare_exchange_strong(&out_queue->add_state, &state, new_state))
+                if (atomic_compare_exchange_strong(&out_queue->add_state, &state.as_uint, new_state.as_uint))
                     return 0;
             }
         }
