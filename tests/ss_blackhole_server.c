@@ -15,9 +15,9 @@ static void _ss_blackhole_server_input_handler(
     const void * data,
     size_t size
 ) {
-    uintptr_t bytes_received = client->extra_data;
+    uintptr_t bytes_received = (uintptr_t) client->extra_data;
     bytes_received += size;
-    client->extra_data = bytes_received;
+    client->extra_data = (void*) bytes_received;
 }
 
 
