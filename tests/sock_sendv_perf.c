@@ -9,6 +9,7 @@
 #define IOV_MAX 1024
 #else
 #include <sys/uio.h>
+#include <limits.h>
 #endif
 
 #if defined(_WIN32)
@@ -148,12 +149,12 @@ int main(int argc, const char * argv[])
     printf("Send %zu bytes...\n", total_bytes);
     printf("       | ");
     for (size_t iovc_max=IOV_MAX; iovc_max>128; iovc_max/=2)
-        printf(" % 5zu |", iovc_max);
+        printf(" %5zu |", iovc_max);
     printf("\n-------+--------+-------+-------+\n");
 
     for (size_t idx=0; idx<13; idx++)
     {
-        printf("% 6zu | ", block_size);
+        printf("%6zu | ", block_size);
         for (size_t iovc_max = IOV_MAX; iovc_max > 128; iovc_max /= 2)
         {
             long elapsed_time_ms = run_test(server_port, total_bytes, block_size, iovc_max);
