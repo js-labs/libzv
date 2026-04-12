@@ -5,9 +5,9 @@
 #include <stdint.h>
 #include <stdio.h>
 
-#define TEST_IOV_MAX 128
-
-#if !defined(_WIN32)
+#if defined(_WIN32)
+#define IOV_MAX 1024
+#else
 #include <sys/uio.h>
 #endif
 
@@ -29,7 +29,8 @@ static inline struct iovec make_iovec(char * ptr, size_t len)
 static long run_test(
     in_port_t server_port,
     size_t total_bytes,
-    size_t block_size
+    size_t block_size,
+    size_t iovc_max
 ) {
     zv_socket_t sockfd = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
     if (sockfd == INVALID_SOCKET)
@@ -38,20 +39,27 @@ static long run_test(
         return -1;
     }
 
+#if defined(_WIN32)
+    WSABUF * iov = malloc(sizeof(WSABUF) * iovc_max);
+#else
+    struct iovec * iov = malloc(sizeof(struct iovec) * iovc_max);
+#endif
+    if (iov == NULL)
+    {
+        fprintf(stderr, "malloc() failed\n");
+        zv_socket_close(sockfd);
+        return -1;
+    }
+
     long ret = -1;
     struct sockaddr_in addr = make_sockaddr_in(INADDR_LOOPBACK, server_port);
     int rc = connect(sockfd, (const struct sockaddr*)&addr, sizeof(addr));
     if (rc == 0)
     {
-#if defined(_WIN32)
-        WSABUF iov[TEST_IOV_MAX];
-#else
-        struct iovec iov[TEST_IOV_MAX];
-#endif
-        char * buffer = malloc(TEST_IOV_MAX * block_size);
+        char * buffer = malloc(iovc_max * block_size);
         if (buffer != NULL)
         {
-            for (size_t idx=0; idx<TEST_IOV_MAX; idx++)
+            for (size_t idx=0; idx<iovc_max; idx++)
                 iov[idx] = make_iovec(buffer + idx*block_size, block_size);
 
             size_t bytes_remaining = total_bytes;
@@ -61,8 +69,8 @@ static long run_test(
             for (;;)
             {
                 int iovc;
-                if ((TEST_IOV_MAX * block_size) <= bytes_remaining)
-                    iovc = TEST_IOV_MAX;
+                if ((iovc_max * block_size) <= bytes_remaining)
+                    iovc = iovc_max;
                 else
                     iovc = (int) (bytes_remaining / block_size);
 
@@ -71,7 +79,7 @@ static long run_test(
                 rc = WSASend(sockfd, iov, iovc, &dw_bytes_sent, 0, NULL, NULL);
                 if (rc != 0)
                 {
-                    fprintf(stderr, "WSASend() failed\n");
+                    fprintf(stderr, "WSASend() failed: %d\n", WSAGetLastError());
                     break;
                 }
                 ssize_t bytes_sent = dw_bytes_sent;
@@ -119,11 +127,8 @@ static long run_test(
 
 int main(int argc, const char * argv[])
 {
-    int rc;
-
 #if defined(_WIN32)
-    rc = wsa_init();
-    if (rc != 0)
+    if (wsa_init() != 0)
     {
         fprintf(stderr, "wsa_init() failed\n");
         return -1;
@@ -140,16 +145,21 @@ int main(int argc, const char * argv[])
 
     size_t total_bytes = 100 * 1024 * 1024;
     size_t block_size = 16;
+    printf("Send %zu bytes...\n", total_bytes);
+    printf("       | ");
+    for (size_t iovc_max=IOV_MAX; iovc_max>128; iovc_max/=2)
+        printf(" % 5zu |", iovc_max);
+    printf("\n-------+--------+-------+-------+\n");
+
     for (size_t idx=0; idx<13; idx++)
     {
-        long elapsed_time_ms = run_test(server_port, total_bytes, block_size);
-        printf(
-            "sent %zu bytes with block size=%zu @ %ld.%.3ld sec\n",
-            total_bytes,
-            block_size,
-            (elapsed_time_ms / 1000),
-            (elapsed_time_ms % 1000)
-        );
+        printf("% 6zu | ", block_size);
+        for (size_t iovc_max = IOV_MAX; iovc_max > 128; iovc_max /= 2)
+        {
+            long elapsed_time_ms = run_test(server_port, total_bytes, block_size, iovc_max);
+            printf(" %ld.%.3ld |", (elapsed_time_ms / 1000), (elapsed_time_ms % 1000));
+        }
+        printf("\n");
         block_size *= 2;
     }
 

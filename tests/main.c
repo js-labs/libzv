@@ -4,6 +4,7 @@
 #include "zv/channel.h"
 #include "zv/log.h"
 #include "zv/loop.h"
+#include "helpers.h"
 
 int acceptor1();
 int channel_close1();
@@ -61,23 +62,9 @@ void run_test(int * failed_tests, const char * name, int (*test_func)())
 int main(int argc, const char * argv[])
 {
 #if defined(_WIN32)
-    WORD version_requested = MAKEWORD(2, 2);
-    WSADATA wsa_data;
-    int rc = WSAStartup(version_requested, &wsa_data);
-    if (rc != 0)
+    if (wsa_init() != 0)
     {
-        fprintf(stderr, "WSAStartup() failed: %d\n", WSAGetLastError());
-        return -1;
-    }
-
-    if ((HIBYTE(wsa_data.wVersion) != 2) && (LOBYTE(wsa_data.wVersion) != 2))
-    {
-        fprintf(
-            stderr,
-            "unsupported WSA version %hu.%hu\n",
-            HIBYTE(wsa_data.wVersion),
-            LOBYTE(wsa_data.wVersion)
-        );
+        fprintf(stderr, "wsa_init() failed\n");
         return -1;
     }
 #endif
@@ -113,6 +100,10 @@ int main(int argc, const char * argv[])
     RUN_TEST(timer_pool_test5);
 
 #undef RUN_TEST
+
+#if defined(_WIN32)
+    WSACleanup();
+#endif
 
     if (failed_tests > 0)
     {
