@@ -147,18 +147,18 @@ int main(int argc, const char * argv[])
     size_t total_bytes = 100 * 1024 * 1024;
     size_t block_size = 16;
     printf("Send %zu bytes...\n", total_bytes);
-    printf("       | ");
+    printf("       |");
     for (size_t iovc_max=IOV_MAX; iovc_max>128; iovc_max/=2)
-        printf(" %5zu |", iovc_max);
-    printf("\n-------+--------+-------+-------+\n");
+        printf(" %6zu |", iovc_max);
+    printf("\n-------+--------+--------+--------+\n");
 
     for (size_t idx=0; idx<13; idx++)
     {
-        printf("%6zu | ", block_size);
+        printf("%6zu |", block_size);
         for (size_t iovc_max = IOV_MAX; iovc_max > 128; iovc_max /= 2)
         {
             long elapsed_time_ms = run_test(server_port, total_bytes, block_size, iovc_max);
-            printf(" %ld.%.3ld |", (elapsed_time_ms / 1000), (elapsed_time_ms % 1000));
+            printf(" %2ld.%.3ld |", (elapsed_time_ms / 1000), (elapsed_time_ms % 1000));
         }
         printf("\n");
         block_size *= 2;
