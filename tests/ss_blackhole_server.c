@@ -1,6 +1,7 @@
 #include "ss_blackhole_server.h"
 #include "ss_server.h"
 #include <stdio.h>
+#include <stdint.h>
 
 
 static void _ss_blackhole_server_accept_handler(struct ss_client_s * client)

@@ -5,8 +5,13 @@
 #include <stdint.h>
 #include <stdio.h>
 
+#define TEST_IOV_MAX 128
+
+#if !defined(_WIN32)
+#include <sys/uio.h>
+#endif
+
 #if defined(_WIN32)
-#define IOV_MAX 512
 static inline WSABUF make_iovec(char * ptr, size_t len)
 {
     WSABUF ret = { .buf = ptr, .len = (ULONG)len };
@@ -41,12 +46,12 @@ static long run_test(
 #if defined(_WIN32)
         WSABUF iov[IOV_MAX];
 #else
-        struct iov iovec[IOV_MAX];
+        struct iovec iov[TEST_IOV_MAX];
 #endif
-        char * buffer = malloc(IOV_MAX * block_size);
+        char * buffer = malloc(TEST_IOV_MAX * block_size);
         if (buffer != NULL)
         {
-            for (size_t idx=0; idx<IOV_MAX; idx++)
+            for (size_t idx=0; idx<TEST_IOV_MAX; idx++)
                 iov[idx] = make_iovec(buffer + idx*block_size, block_size);
 
             size_t bytes_remaining = total_bytes;
@@ -56,8 +61,8 @@ static long run_test(
             for (;;)
             {
                 int iovc;
-                if ((IOV_MAX * block_size) <= bytes_remaining)
-                    iovc = IOV_MAX;
+                if ((TEST_IOV_MAX * block_size) <= bytes_remaining)
+                    iovc = TEST_IOV_MAX;
                 else
                     iovc = (bytes_remaining / block_size);
 
@@ -81,7 +86,7 @@ static long run_test(
                 {
                     fprintf(
                         stderr,
-                        "internal error: bytes_sent=%u instead of %zu\n",
+                        "internal error: bytes_sent=%zd instead of %zu\n",
                         bytes_sent,
                         (iovc * block_size)
                     );

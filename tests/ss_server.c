@@ -5,6 +5,10 @@
 #include <assert.h>
 #include <stdio.h>
 
+#if !defined(_WIN32)
+#include <fcntl.h>
+#endif
+
 struct ss_server_s
 {
     void (*accept_handler)(struct ss_client_s*);
@@ -52,7 +56,7 @@ static void * _ss_server_thread_func(void * arg)
 
         for (size_t idx=0; idx<zv_array_get_size(clients); idx++)
         {
-            struct s_client_s * client = &clients[idx];
+            struct ss_client_s * client = &clients[idx];
             FD_SET(client->sockfd, &read_fds);
             if (client->wait_wr)
                 FD_SET(client->sockfd, &write_fds);
