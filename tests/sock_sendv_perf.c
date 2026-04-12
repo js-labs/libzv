@@ -44,7 +44,7 @@ static long run_test(
     if (rc == 0)
     {
 #if defined(_WIN32)
-        WSABUF iov[IOV_MAX];
+        WSABUF iov[TEST_IOV_MAX];
 #else
         struct iovec iov[TEST_IOV_MAX];
 #endif
@@ -64,16 +64,17 @@ static long run_test(
                 if ((TEST_IOV_MAX * block_size) <= bytes_remaining)
                     iovc = TEST_IOV_MAX;
                 else
-                    iovc = (bytes_remaining / block_size);
+                    iovc = (int) (bytes_remaining / block_size);
 
 #if defined(_WIN32)
-                DWORD bytes_sent;
-                rc = WSASend(sockfd, iov, iovc, &bytes_sent, 0, NULL, NULL);
+                DWORD dw_bytes_sent;
+                rc = WSASend(sockfd, iov, iovc, &dw_bytes_sent, 0, NULL, NULL);
                 if (rc != 0)
                 {
                     fprintf(stderr, "WSASend() failed\n");
                     break;
                 }
+                ssize_t bytes_sent = dw_bytes_sent;
 #else
                 ssize_t bytes_sent = writev(sockfd, iov, iovc);
                 if (bytes_sent < 0)
@@ -88,7 +89,7 @@ static long run_test(
                         stderr,
                         "internal error: bytes_sent=%zd instead of %zu\n",
                         bytes_sent,
-                        (iovc * block_size)
+                        (block_size * iovc)
                     );
                     break;
                 }

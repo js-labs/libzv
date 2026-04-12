@@ -166,10 +166,10 @@ static void * tcp_echo_server_sock_loop_thread_func(void * arg)
             struct sock_client_s * client = &clients[idx];
             if (FD_ISSET(client->sockfd, &read_fds))
             {
-                ssize_t bytes_received = recv(client->sockfd, buffer, (int)buffer_size, 0);
+                ssize_t bytes_received = recv(client->sockfd, buffer, buffer_size, 0);
                 if (bytes_received > 0)
                 {
-                    ssize_t bytes_sent = send(client->sockfd, buffer, bytes_received, 0);
+                    ssize_t bytes_sent = send(client->sockfd, buffer, (size_t)bytes_received, 0);
                     if (bytes_sent < 0)
                     {
                         printf(

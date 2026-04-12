@@ -30,12 +30,13 @@ typedef SOCKET zv_socket_t;
 typedef int socklen_t;
 typedef USHORT in_port_t;
 typedef ULONG in_addr_t;
-typedef int ssize_t;
 
 #if defined(_WIN64)
 #define PRIsocket "lld"
+typedef __int64 ssize_t;
 #else
 #define PRIsocket "ld"
+typedef int ssize_t;
 #endif
 
 #elif defined(__linux__) || defined(__APPLE__)
