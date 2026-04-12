@@ -12,6 +12,10 @@
 
 struct sockaddr_in make_sockaddr_in(in_addr_t in_addr, in_port_t in_port);
 
+#if defined(_WIN32)
+int wsa_init();
+#endif
+
 int get_sock_names(
     zv_socket_t sockfd,
     char * local_addr_str, int local_addr_str_len,

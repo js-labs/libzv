@@ -40,6 +40,33 @@ struct sockaddr_in make_sockaddr_in(in_addr_t in_addr, in_port_t in_port)
     return addr;
 }
 
+#if defined(_WIN32)
+int wsa_init()
+{
+    WORD version_requested = MAKEWORD(2, 2);
+    WSADATA wsa_data;
+    int rc = WSAStartup(version_requested, &wsa_data);
+    if (rc != 0)
+    {
+        fprintf(stderr, "WSAStartup() failed: %d\n", WSAGetLastError());
+        return -1;
+    }
+
+    if ((HIBYTE(wsa_data.wVersion) != 2) && (LOBYTE(wsa_data.wVersion) != 2))
+    {
+        fprintf(
+            stderr,
+            "unsupported WSA version %hu.%hu\n",
+            HIBYTE(wsa_data.wVersion),
+            LOBYTE(wsa_data.wVersion)
+        );
+        return -1;
+    }
+
+    return 0;
+}
+#endif
+
 int get_sock_names(
     zv_socket_t sockfd,
     char * local_addr_str, int local_addr_str_len,
@@ -260,11 +287,13 @@ int start_sock_server(
                 }
             }
             else
-                printf("listen() failed\n");
+                fprintf(stderr, "listen() failed\n");
         }
         else
-            printf("getsockname() failed\n");
+            fprintf(stderr, "getsockname() failed\n");
     }
+    else
+        fprintf(stderr, "bind() failed\n");
     closesocket(sockfd);
     return rc;
 }
