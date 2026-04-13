@@ -103,7 +103,7 @@ static long run_test(
                     break;
                 }
 
-                if (bytes_sent >= bytes_remaining)
+                if (((size_t)bytes_sent) >= bytes_remaining)
                     break;
                 bytes_remaining -= bytes_sent;
             }
@@ -146,7 +146,7 @@ int main(int argc, const char * argv[])
 
     size_t total_bytes = 100 * 1024 * 1024;
     size_t block_size = 16;
-    printf("Send %zu bytes...\n", total_bytes);
+    printf("Send %zu MB...\n", (total_bytes) / (1024*1024));
     printf("       |");
     for (size_t iovc_max=IOV_MAX; iovc_max>128; iovc_max/=2)
         printf(" %6zu |", iovc_max);
