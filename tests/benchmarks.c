@@ -22,6 +22,7 @@
 #include "zv/channel.h"
 #include "zv/log.h"
 #include "zv/loop.h"
+#include "helpers.h"
 
 #if defined(_WIN32)
 #include <WinSock2.h>
@@ -81,28 +82,9 @@ static zv_log_backend_t * setup_logs(const char * benchmark_name)
 
 int main(int argc, const char * argv[])
 {
-    int rc;
-
 #if defined(_WIN32)
-    WORD version_requested = MAKEWORD(2, 2);
-    WSADATA wsa_data;
-    rc = WSAStartup(version_requested, &wsa_data);
-    if (rc != 0)
-    {
-        fprintf(stderr, "WSAStartup() failed: %d\n", WSAGetLastError());
+    if (wsa_init() != 0)
         return -1;
-    }
-
-    if ((HIBYTE(wsa_data.wVersion) != 2) && (LOBYTE(wsa_data.wVersion) != 2))
-    {
-        fprintf(
-            stderr,
-            "unsupported WSA version %hu.%hu\n",
-            HIBYTE(wsa_data.wVersion),
-            LOBYTE(wsa_data.wVersion)
-        );
-        return -1;
-    }
 #endif
 
 #if defined(ENABLE_LOGS)
@@ -129,7 +111,7 @@ int main(int argc, const char * argv[])
                 zv_log_backend_t * log_backend = setup_logs(benchmark->name);
 #endif
 
-                rc = benchmark->func();
+                int rc = benchmark->func();
 
 #if defined(ENABLE_LOGS)
                 if (log_backend != NULL)
@@ -138,7 +120,6 @@ int main(int argc, const char * argv[])
                     fclose(file);
                 }
 #endif
-
                 return rc;
             }
         }
@@ -162,5 +143,5 @@ int main(int argc, const char * argv[])
     WSACleanup();
 #endif
 
-    return rc;
+    return -1;
 }

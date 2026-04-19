@@ -67,7 +67,7 @@ static void after_connect(zv_connector_t * connector, zv_socket_t sockfd)
             int rc = zv_channel_send(channel, SEND_DATA, sizeof(SEND_DATA));
             if (rc != 0)
             {
-                printf("zv_channel_send() failed\n");
+                fprintf(stderr, "zv_channel_send() failed\n");
                 break;
             }
         }
@@ -90,20 +90,27 @@ static void after_connect(zv_connector_t * connector, zv_socket_t sockfd)
 
 static void server_thread_func(zv_socket_t accept_socket)
 {
+    size_t buffer_size = (32 * 1024);
+    char * buffer = malloc(buffer_size);
+    if (buffer == NULL)
+    {
+        fprintf(stderr, "malloc() failed\n");
+        abort();
+    }
+
     zv_socket_t sockfd = accept(accept_socket, NULL, 0);
-    char buffer[1024*32];
-    size_t bytes_received = 0;
     const size_t bytes_expected = (sizeof(SEND_DATA) * NUM_SEND_REQS);
+    size_t bytes_received = 0;
 
     struct timespec ts_start;
     clock_gettime(CLOCK_MONOTONIC, &ts_start);
 
     while (bytes_received < bytes_expected)
     {
-        ssize_t rc = recv(sockfd, buffer, sizeof(buffer), 0);
+        ssize_t rc = recv(sockfd, buffer, buffer_size, 0);
         if (rc < 0)
         {
-            printf("recv() failed.\n");
+            fprintf(stderr, "recv() failed.\n");
             break;
         }
         bytes_received += rc;
@@ -144,25 +151,8 @@ int main(int argc, const char * argv[])
     int rc;
 
 #if defined(_WIN32)
-    WORD version_requested = MAKEWORD(2, 2);
-    WSADATA wsa_data;
-    rc = WSAStartup(version_requested, &wsa_data);
-    if (rc != 0)
-    {
-        fprintf(stderr, "WSAStartup() failed: %d\n", WSAGetLastError());
+    if (wsa_init() != 0)
         return -1;
-    }
-
-    if ((HIBYTE(wsa_data.wVersion) != 2) && (LOBYTE(wsa_data.wVersion) != 2))
-    {
-        fprintf(
-            stderr,
-            "unsupported WSA version %hu.%hu\n",
-            HIBYTE(wsa_data.wVersion),
-            LOBYTE(wsa_data.wVersion)
-        );
-        return -1;
-    }
 #endif
 
     rc = start_sock_server(&server_port, &server_thread, &server_thread_func);
