@@ -46,7 +46,7 @@ static void * _ss_server_thread_func(void * arg)
         {
             struct ss_client_s * client = &clients[idx];
             FD_SET(client->sockfd, &read_fds);
-            if (client->wait_wr)
+            if (client->wait_wr > 0)
                 FD_SET(client->sockfd, &write_fds);
         }
 #else
@@ -265,8 +265,14 @@ static int _ss_server_init(
     else
         fprintf(stderr, "socket() failed\n");
 
-    zv_socket_close(cmd_pipe[0]);
-    zv_socket_close(cmd_pipe[1]);
+#if defined(_WIN32)
+    closesocket(cmd_pipe[0]);
+    closesocket(cmd_pipe[1]);
+#else
+    close(cmd_pipe[0]);
+    close(cmd_pipe[1]);
+#endif
+
     return -1;
 }
 

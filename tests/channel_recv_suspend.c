@@ -178,10 +178,10 @@ static int run_test(
             {
                 memset(buffer, 42, buffer_size);
 
-                int bytes_remaining = SEND_DATA_SIZE;
+                size_t bytes_remaining = SEND_DATA_SIZE;
                 while (bytes_remaining > 0)
                 {
-                    int bytes_to_send = ((bytes_remaining > buffer_size) ? buffer_size : bytes_remaining);
+                    size_t bytes_to_send = ((bytes_remaining > buffer_size) ? buffer_size : bytes_remaining);
                     ssize_t bytes_sent = send(sockfd, (const char*)buffer, bytes_to_send, 0);
                     if (bytes_sent < 0)
                     {

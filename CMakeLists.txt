@@ -124,6 +124,8 @@ if(BUILD_TESTS)
         tests/benchmarks.c
         tests/helpers.c
         tests/histogram.c
+        tests/ss_server.c
+        tests/ss_echo_server.c
         tests/tcp_broadcast_server.c
         tests/tcp_echo_server.c
         tests/udp_echo_server.c

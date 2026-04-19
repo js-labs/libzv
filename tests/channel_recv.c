@@ -98,14 +98,14 @@ int channel_recv()
                 for (size_t idx = 0; idx < buffer_msg_count; idx++)
                     buffer[idx] = (uint32_t) msg_count;
 
-                int bytes_remaining = (msg_count * sizeof(int32_t));
+                size_t bytes_remaining = (msg_count * sizeof(int32_t));
                 while (bytes_remaining > 0)
                 {
-                    int bytes_to_send = ((bytes_remaining > buffer_size) ? buffer_size : bytes_remaining);
+                    size_t bytes_to_send = ((bytes_remaining > buffer_size) ? buffer_size : bytes_remaining);
                     ssize_t bytes_sent = send(sockfd, (const char*) buffer, bytes_to_send, 0);
                     if (bytes_sent < 0)
                     {
-                        printf("send() failed\n");
+                        fprintf(stderr, "send() failed\n");
                         break;
                     }
                     bytes_remaining -= bytes_sent;
@@ -115,7 +115,7 @@ int channel_recv()
             }
             else
             {
-                printf("connect() failed\n");
+                fprintf(stderr, "connect() failed\n");
                 zv_acceptor_stop(acceptor, &after_acceptor_stop, NULL);
             }
 
@@ -123,7 +123,7 @@ int channel_recv()
         }
         else
         {
-            printf("socket() failed\n");
+            fprintf(stderr, "socket() failed\n");
             zv_acceptor_stop(acceptor, &after_acceptor_stop, NULL);
             rc = -1;
         }

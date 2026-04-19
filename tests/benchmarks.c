@@ -40,7 +40,6 @@ struct benchmark_s
 int benchmark_tcp_broadcast(int clients);
 int benchmark_tcp_echo_latency();
 int benchmark_tcp_ping_pongs(int pingers, int use_libzv);
-int benchmark_tcp_recv_throughput();
 int benchmark_thread_pool_latency();
 int benchmark_thread_pool_throughput();
 int benchmark_udp_echo_latency();
