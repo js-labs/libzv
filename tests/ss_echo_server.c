@@ -17,6 +17,9 @@ static inline WSABUF make_iovec(char * ptr, size_t len)
 }
 
 #else
+#include <limits.h>
+#include <string.h>
+#include <sys/uio.h>
 static inline struct iovec make_iovec(char* ptr, size_t len)
 {
     struct iovec ret = { .iov_base = ptr, .iov_len = len };
