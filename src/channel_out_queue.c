@@ -23,7 +23,9 @@
 
 #if defined(_WIN32)
 #include <limits.h>
+#include <WinSock2.h>
 #elif defined(__linux__) || defined(__APPLE__)
+#include <sys/uio.h>
 #include <stdint.h>
 #include <string.h>
 #endif
@@ -226,28 +228,21 @@ int zv_channel_out_queue_add_data(
     }
 }
 
+
+static inline struct iovec make_iovec(char * ptr, size_t len)
+{
 #if defined(_WIN32)
-static inline WSABUF make_iovec(char* ptr, size_t len)
-{
     WSABUF ret = { .buf = ptr, .len = (ULONG)len };
-    return ret;
-}
 #else
-static inline struct iovec make_iovec(char* ptr, size_t len)
-{
     struct iovec ret = { .iov_base = ptr, .iov_len = len };
+#endif
     return ret;
 }
-#endif
 
 
 int zv_channel_out_queue_get_data(
     struct zv_channel_out_queue_s * out_queue,
-#if defined(_WIN32)
-    WSABUF * iov,
-#else
     struct iovec * iov,
-#endif
     int iovc_max
 ) {
     const size_t buffer_size = zv_buffer_cache_get_buffer_size(out_queue->buffer_cache);

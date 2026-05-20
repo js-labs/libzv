@@ -24,8 +24,10 @@
 
 #if defined(_WIN32)
 #include <limits.h>
+#include <WinSock2.h>
 #elif defined(__linux__) || defined(__APPLE__)
 #include <stdint.h>
+#include <sys/uio.h>
 #endif
 
 #if defined(__INTELLISENSE__)
@@ -80,28 +82,20 @@ void zv_channel_in_queue_deinit(struct zv_channel_in_queue_s * in_queue)
 }
 
 
-#if defined(_WIN32)
-static inline WSABUF make_iovec(char * ptr, size_t len)
-{
-    WSABUF ret = { .buf = ptr, .len = (ULONG) len };
-    return ret;
-}
-#else
 static inline struct iovec make_iovec(char * ptr, size_t len)
 {
+#if defined(_WIN32)
+    WSABUF ret = { .buf = ptr, .len = (ULONG) len };
+#else
     struct iovec ret = { .iov_base = ptr, .iov_len = len };
+#endif
     return ret;
 }
-#endif
 
 
 void zv_channel_in_queue_get_wr(
     struct zv_channel_in_queue_s * in_queue,
-#if defined(_WIN32)
-    WSABUF * iov
-#else
     struct iovec * iov
-#endif
 ) {
     const size_t buffer_size = zv_buffer_cache_get_buffer_size(in_queue->buffer_cache);
     size_t space = (buffer_size - in_queue->wr_offs);
