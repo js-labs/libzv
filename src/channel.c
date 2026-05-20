@@ -360,7 +360,7 @@ static void _zv_channel_write_task(struct zv_thread_pool_task_s * task)
     struct zv_channel_s * channel = _zv_channel_by_write_task(task);
     struct zv_channel_out_queue_s * out_queue = &channel->out_queue;
 
-    WSABUF iov[IOV_MAX];
+    struct iovec iov[IOV_MAX];
     int iovc = zv_channel_out_queue_get_data(out_queue, iov, IOV_MAX);
     assert(iovc > 0);
 
