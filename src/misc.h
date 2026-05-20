@@ -24,6 +24,8 @@
 
 #if defined(_WIN32)
 
+#include <WinSock2.h>
+
 static inline int _zv_get_errno() { return WSAGetLastError(); }
 static inline void _zv_set_errno(int n) { WSASetLastError(n); }
 

@@ -143,18 +143,16 @@ static void _zv_channel_read_task(struct zv_thread_pool_task_s * task)
 {
     struct zv_channel_s * channel = _zv_channel_by_read_task(task);
 
-#if defined(_WIN32)
-    WSABUF iov[2];
+    struct iovec iov[2];
     zv_channel_in_queue_get_wr(&channel->in_queue, iov);
 
+#if defined(_WIN32)
     DWORD bytes_received;
     DWORD flags = 0;
     int rc = WSARecv(channel->read_handler.sockfd, iov, 2, &bytes_received, &flags, NULL, NULL);
     if (rc == SOCKET_ERROR)
         bytes_received = 0;
 #else
-    struct iovec iov[2];
-    zv_channel_in_queue_get_wr(&channel->in_queue, iov);
     ssize_t bytes_received = readv(channel->read_handler.sockfd, iov, 2);
 #endif
 
@@ -362,11 +360,11 @@ static void _zv_channel_write_task(struct zv_thread_pool_task_s * task)
     struct zv_channel_s * channel = _zv_channel_by_write_task(task);
     struct zv_channel_out_queue_s * out_queue = &channel->out_queue;
 
-#if defined(_WIN32)
     WSABUF iov[IOV_MAX];
     int iovc = zv_channel_out_queue_get_data(out_queue, iov, IOV_MAX);
     assert(iovc > 0);
 
+#if defined(_WIN32)
     DWORD bytes_sent;
     int rc = WSASend(channel->write_handler.sockfd, iov, iovc, &bytes_sent, 0, NULL, NULL);
     if (rc != 0)
@@ -374,20 +372,16 @@ static void _zv_channel_write_task(struct zv_thread_pool_task_s * task)
 #elif defined(__linux__)
     // Using sendmsg() on Linux so that there is no need
     // to process the SIGPIPE signal if the socket is closed by peer.
-    struct iovec iov[IOV_MAX];
     struct msghdr msg;
     msg.msg_name = NULL;
     msg.msg_namelen = 0;
     msg.msg_iov = iov;
-    msg.msg_iovlen = zv_channel_out_queue_get_data(out_queue, iov, IOV_MAX);
+    msg.msg_iovlen = iovc;
     msg.msg_control = NULL;
     msg.msg_controllen = 0;
     msg.msg_flags = 0;
     ssize_t bytes_sent = sendmsg(channel->write_handler.sockfd, &msg, MSG_NOSIGNAL);
 #else
-    struct iovec iov[IOV_MAX];
-    int iovc = zv_channel_out_queue_get_data(out_queue, iov, IOV_MAX);
-    assert(iovc > 0);
     ssize_t bytes_sent = writev(channel->write_handler.sockfd, iov, iovc);
 #endif
     if (bytes_sent > 0)

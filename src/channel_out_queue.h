@@ -23,9 +23,12 @@
 #include <stddef.h>
 
 #if defined(_WIN32)
-#include <WinSock2.h>
-#elif defined(__linux__) || defined(__APPLE__)
-#include <sys/uio.h>
+struct _WSABUF;
+#if !defined(iovec)
+#define iovec _WSABUF
+#endif
+#else
+struct iovec;
 #endif
 
 #if defined(__INTELLISENSE__)
@@ -64,11 +67,7 @@ int zv_channel_out_queue_add_data(
 
 int zv_channel_out_queue_get_data(
     struct zv_channel_out_queue_s * out_queue,
-#if defined(_WIN32)
-    WSABUF * iov,
-#else
     struct iovec * iov,
-#endif
     int iovc_max
 );
 
