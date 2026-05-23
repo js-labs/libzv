@@ -76,15 +76,15 @@ static size_t _zv_channel_out_queue_add_data(
         struct state_s
         {
 #if defined(_LP64) || defined(__LP64__) || defined(_M_X64)
-            unsigned int offs : 26;
-            unsigned int start_offs : 26;
-            unsigned int writers : 6;
+            size_t offs : 26;
+            size_t start_offs : 26;
+            size_t writers : 6;
 #else
-            unsigned int offs : 14;
-            unsigned int start_offs : 14;
-            unsigned int writers : 3;
+            size_t offs : 14;
+            size_t start_offs : 14;
+            size_t writers : 3;
 #endif
-            unsigned int lock : 1;
+            size_t lock : 1;
         }
         as_struct;
         size_t as_uint;
