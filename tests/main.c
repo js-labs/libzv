@@ -7,6 +7,7 @@
 #include "helpers.h"
 
 int acceptor1();
+int buffer_cache();
 int channel_close1();
 int channel_close2();
 int channel_recv();
@@ -83,6 +84,7 @@ int main(int argc, const char * argv[])
     run_test(&failed_tests, #name, name); tests++
 
     RUN_TEST(acceptor1);
+    RUN_TEST(buffer_cache);
     RUN_TEST(channel_close1);
     RUN_TEST(channel_close2);
     RUN_TEST(channel_recv);
