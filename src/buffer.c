@@ -195,9 +195,7 @@ struct zv_buffer_s * zv_buffer_cache_get_for(zv_buffer_cache_t * buffer_cache, s
         }
     }
 
-    buffer_cache->stats.gets_alloc += (size / buffer_size);
-    if ((size % buffer_size) > 0)
-        buffer_cache->stats.gets_alloc++;
+    buffer_cache->stats.gets_alloc += ((size + buffer_size - 1) / buffer_size);
 
     pthread_mutex_unlock(&buffer_cache->lock);
 
@@ -218,7 +216,9 @@ struct zv_buffer_s * zv_buffer_cache_get_for(zv_buffer_cache_t * buffer_cache, s
             head->next = NULL;
             return head;
         }
+
         count--;
+        size -= buffer_size;
         tail = head;
     }
 

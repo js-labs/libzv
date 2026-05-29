@@ -94,6 +94,7 @@ if(BUILD_TESTS)
 
     set(TEST_SRCS
         tests/acceptor1.c
+        tests/buffer_cache.c
         tests/channel_close1.c
         tests/channel_close2.c
         tests/channel_recv.c
