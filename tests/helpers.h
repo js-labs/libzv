@@ -37,7 +37,7 @@ zv_loop_t * create_loop_and_connector(
     void (*after_connect)(zv_connector_t*, zv_socket_t)
 );
 
-int start_sock_server(
+int start_raw_server(
     in_port_t * port,
     pthread_t * thread,
     void (*func)(zv_socket_t accept_socket)

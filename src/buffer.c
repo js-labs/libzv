@@ -273,7 +273,7 @@ void zv_buffer_cache_put(zv_buffer_cache_t * buffer_cache, struct zv_buffer_s * 
     }
 
     size_t count = 0;
-    for (struct zv_buffer_s * ptr = buffer; ptr; ptr=ptr->next, count++);
+    for (struct zv_buffer_s * b=buffer; b!=NULL; b=b->next, count++);
     buffer_cache->in_use -= count;
     buffer_cache->stats.puts_free += count;
 

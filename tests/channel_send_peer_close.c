@@ -58,7 +58,6 @@ static void channel_close_handler(zv_channel_t * channel)
     zv_loop_stop(loop);
 }
 
-
 static void after_connect(zv_connector_t * connector, zv_socket_t sockfd)
 {
     zv_loop_t * loop = zv_connector_get_loop(connector);
@@ -116,16 +115,18 @@ int channel_send_peer_close()
 {
     in_port_t server_port;
     pthread_t server_thread;
-    int rc = start_sock_server(&server_port, &server_thread, &server_thread_func);
+    int rc = start_raw_server(&server_port, &server_thread, &server_thread_func);
     if (rc == 0)
     {
         printf("server started at port %hu\n", server_port);
 
-        zv_loop_t * loop = create_loop_and_connector(server_port, &after_connect);
+        zv_loop_t* loop = create_loop_and_connector(server_port, &after_connect);
         zv_loop_run(loop);
         zv_loop_destroy(loop);
 
         pthread_join(server_thread, NULL);
     }
+    else
+        fprintf(stderr, "start_raw_server() failed\n");
     return 0;
 }

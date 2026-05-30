@@ -236,16 +236,16 @@ zv_loop_t * create_loop_and_connector(
 }
 
 
-struct sock_server_thread_arg_s
+struct raw_server_thread_arg_s
 {
     void (*func)(zv_socket_t);
     zv_socket_t accept_socket;
 };
 
 
-static void * sock_server_thread_func(void * _arg)
+static void * raw_server_thread_func(void * _arg)
 {
-    struct sock_server_thread_arg_s * arg = (struct sock_server_thread_arg_s*) _arg;
+    struct raw_server_thread_arg_s * arg = (struct raw_server_thread_arg_s*) _arg;
     void (*func)(zv_socket_t) = arg->func;
     zv_socket_t accept_socket = arg->accept_socket;
     free(arg);
@@ -254,7 +254,7 @@ static void * sock_server_thread_func(void * _arg)
 }
 
 
-int start_sock_server(
+int start_raw_server(
     in_port_t * port,
     pthread_t * thread,
     void (*func)(zv_socket_t accept_socket)
@@ -275,12 +275,12 @@ int start_sock_server(
             rc = listen(sockfd, 1);
             if (rc == 0)
             {
-                struct sock_server_thread_arg_s * thread_arg = malloc(sizeof(struct sock_server_thread_arg_s));
+                struct raw_server_thread_arg_s * thread_arg = malloc(sizeof(struct raw_server_thread_arg_s));
                 if (thread_arg)
                 {
                     thread_arg->func = func;
                     thread_arg->accept_socket = sockfd;
-                    rc = pthread_create(thread, NULL, &sock_server_thread_func, thread_arg);
+                    rc = pthread_create(thread, NULL, &raw_server_thread_func, thread_arg);
                     if (rc == 0)
                         return 0;
                     free(thread_arg);
@@ -309,11 +309,11 @@ zv_socket_t sock_connect(in_addr_t in_addr, in_port_t in_port)
         if (rc == 0)
             return sockfd;
         else
-            printf("connect() failed\n");
+            fprintf(stderr, "connect() failed\n");
         closesocket(sockfd);
     }
     else
-        printf("socket() failed\n");
+        fprintf(stderr, "socket() failed\n");
     return INVALID_SOCKET;
 }
 
