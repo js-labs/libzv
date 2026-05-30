@@ -1,5 +1,5 @@
-#include <assert.h>
 #include <inttypes.h>
+#include <string.h>
 #include <time.h>
 #include "zv/buffer.h"
 #include "zv/channel.h"
