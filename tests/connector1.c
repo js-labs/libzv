@@ -70,9 +70,12 @@ int connector1()
 {
     in_port_t server_port;
     pthread_t server_thread;
-    int rc = start_sock_server(&server_port, &server_thread, &server_thread_func);
+    int rc = start_raw_server(&server_port, &server_thread, &server_thread_func);
     if (rc != 0)
+    {
+        fprintf(stderr, "start_raw_server() failed\n");
         return rc;
+    }
 
     printf("server started at port %hu\n", server_port);
 
@@ -94,7 +97,7 @@ int connector1()
         zv_loop_destroy(loop);
     }
     else
-        printf("zv_loop_create() failed\n");
+        fprintf(stderr, "zv_loop_create() failed\n");
 
     pthread_join(server_thread, NULL);
 

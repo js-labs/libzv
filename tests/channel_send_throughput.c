@@ -47,6 +47,7 @@ static void after_connect(zv_connector_t * connector, zv_socket_t sockfd)
         &channel_close_handler,
         NULL /*extra data*/
     );
+
     zv_buffer_cache_release(buffer_cache);
 
     if (channel)
@@ -59,12 +60,17 @@ static void after_connect(zv_connector_t * connector, zv_socket_t sockfd)
 
         zv_channel_start(channel);
 
-        struct timespec ts_start;
-        clock_gettime(CLOCK_MONOTONIC, &ts_start);
+        struct timespec ts_t1;
+        clock_gettime(CLOCK_MONOTONIC, &ts_t1);
 
-        for (int count=NUM_SEND_REQS; count>0; count--)
+        char message[sizeof(struct timespec) + sizeof(SEND_DATA)];
+        memcpy(message, &ts_t1, sizeof(struct timespec));
+        memcpy(message + sizeof(struct timespec), SEND_DATA, sizeof(SEND_DATA));
+
+        int count = NUM_SEND_REQS;
+        for (; count>0; count--)
         {
-            int rc = zv_channel_send(channel, SEND_DATA, sizeof(SEND_DATA));
+            int rc = zv_channel_send(channel, message, sizeof(message));
             if (rc != 0)
             {
                 fprintf(stderr, "zv_channel_send() failed\n");
@@ -72,16 +78,20 @@ static void after_connect(zv_connector_t * connector, zv_socket_t sockfd)
             }
         }
 
-        struct timespec ts_end;
-        clock_gettime(CLOCK_MONOTONIC, &ts_end);
+        if (count == 0)
+        {
+            struct timespec ts_t2;
+            clock_gettime(CLOCK_MONOTONIC, &ts_t2);
 
-        long elapsed_time_ms = zv_elapsed_time_us(&ts_start, &ts_end) / 1000;
-        printf(
-            "# %d write requests in %ld.%.3ld sec\n",
-            NUM_SEND_REQS,
-            elapsed_time_ms / 1000,
-            elapsed_time_ms % 1000
-        );
+            long elapsed_time_ms = zv_elapsed_time_us(&ts_t1, &ts_t2) / 1000;
+            printf(
+                "> sent %d requests (%zu bytes) in %ld.%.3ld sec\n",
+                NUM_SEND_REQS,
+                sizeof(message) * NUM_SEND_REQS,
+                elapsed_time_ms / 1000,
+                elapsed_time_ms % 1000
+            );
+        }
 
         zv_channel_release(channel);
     }
@@ -99,22 +109,29 @@ static void server_thread_func(zv_socket_t accept_socket)
     }
 
     zv_socket_t sockfd = accept(accept_socket, NULL, 0);
-    const size_t bytes_expected = (sizeof(SEND_DATA) * NUM_SEND_REQS);
+    const size_t bytes_expected = ((sizeof(struct timespec) + sizeof(SEND_DATA)) * NUM_SEND_REQS);
     size_t bytes_received = 0;
 
-    struct timespec ts_start;
-    clock_gettime(CLOCK_MONOTONIC, &ts_start);
+    struct timespec ts_t1;
 
-    while (bytes_received < bytes_expected)
+    ssize_t rc = recv(sockfd, buffer, buffer_size, 0);
+    if (rc > 0)
     {
-        ssize_t rc = recv(sockfd, buffer, buffer_size, 0);
-        if (rc < 0)
+        memcpy(&ts_t1, buffer, sizeof(struct timespec));
+        bytes_received = rc;
+        while (bytes_received < bytes_expected)
         {
-            fprintf(stderr, "recv() failed.\n");
-            break;
+            ssize_t rc = recv(sockfd, buffer, buffer_size, 0);
+            if (rc < 0)
+            {
+                fprintf(stderr, "recv() failed.\n");
+                break;
+            }
+            bytes_received += rc;
         }
-        bytes_received += rc;
     }
+    else
+        fprintf(stderr, "recv() failed.\n");
 
     if (bytes_received < bytes_expected)
     {
@@ -127,12 +144,12 @@ static void server_thread_func(zv_socket_t accept_socket)
     }
     else
     {
-        struct timespec ts_end;
-        clock_gettime(CLOCK_MONOTONIC, &ts_end);
+        struct timespec ts_t4;
+        clock_gettime(CLOCK_MONOTONIC, &ts_t4);
 
-        long elapsed_time_ms = zv_elapsed_time_us(&ts_start, &ts_end) / 1000;
+        long elapsed_time_ms = zv_elapsed_time_us(&ts_t1, &ts_t4) / 1000;
         printf(
-            "# received %zu bytes in %ld.%.3ld sec\n",
+            "> transmitted %zu bytes, (t4-t1) = %ld.%.3ld sec\n",
             bytes_expected,
             elapsed_time_ms / 1000,
             elapsed_time_ms % 1000
@@ -155,12 +172,12 @@ int main(int argc, const char * argv[])
         return -1;
 #endif
 
-    rc = start_sock_server(&server_port, &server_thread, &server_thread_func);
+    rc = start_raw_server(&server_port, &server_thread, &server_thread_func);
     if (rc == 0)
     {
         printf("server started at port %hu\n", server_port);
 
-        zv_loop_t* loop = create_loop_and_connector(server_port, &after_connect);
+        zv_loop_t * loop = create_loop_and_connector(server_port, &after_connect);
         if (loop)
         {
             zv_loop_run(loop);
