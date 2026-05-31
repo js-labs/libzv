@@ -4,7 +4,7 @@
 #include "zv/channel.h"
 #include "helpers.h"
 #include "tcp_echo_server.h"
-#include "ss_echo_server.h"
+#include "rs_echo_server.h"
 
 #include <assert.h>
 #include <errno.h>
@@ -20,11 +20,11 @@ struct tcp_echo_server_zv_s
 
 struct tcp_echo_server_s
 {
-    int use_libxv;
+    int use_libzv;
     union
     {
         struct tcp_echo_server_zv_s zv;
-        ss_echo_server_t * ss;
+        rs_echo_server_t * rs;
     };
 };
 
@@ -166,22 +166,22 @@ tcp_echo_server_t * tcp_echo_server_create(
     int rc;
     if (loop_config == NULL)
     {
-        server->use_libxv = 0;
-        ss_echo_server_t * ss = ss_echo_server_create(port);
-        if (ss == NULL)
+        server->use_libzv = 0;
+        rs_echo_server_t * rs = rs_echo_server_create(port);
+        if (rs == NULL)
         {
-            fprintf(stderr, "ss_echo_server_create() failed\n");
+            fprintf(stderr, "rs_echo_server_create() failed\n");
             rc = -1;
         }
         else
         {
-            server->ss = ss;
+            server->rs = rs;
             rc = 0;
         }
     }
     else
     {
-        server->use_libxv = 1;
+        server->use_libzv = 1;
         rc = tcp_echo_server_zv_init(server, loop_config, port);
     }
 
@@ -197,13 +197,12 @@ tcp_echo_server_t * tcp_echo_server_create(
 
 void tcp_echo_server_stop_and_destroy(tcp_echo_server_t * server)
 {
-    if (server->use_libxv)
+    if (server->use_libzv)
     {
         zv_loop_stop(server->zv.loop);
         pthread_join(server->zv.thread, NULL);
     }
     else
-        ss_echo_server_stop_and_destroy(server->ss);
-
+        rs_echo_server_stop_and_destroy(server->rs);
     free(server);
 }

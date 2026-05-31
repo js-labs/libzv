@@ -125,8 +125,8 @@ if(BUILD_TESTS)
         tests/benchmarks.c
         tests/helpers.c
         tests/histogram.c
-        tests/ss_server.c
-        tests/ss_echo_server.c
+        tests/rs_echo_server.c
+        tests/rs_server.c
         tests/tcp_broadcast_server.c
         tests/tcp_echo_server.c
         tests/udp_echo_server.c
@@ -136,7 +136,7 @@ if(BUILD_TESTS)
     add_executable(zv_benchmarks ${BENCHMARK_SRCS})
     add_executable(channel_recv_throughput tests/channel_recv_throughput.c tests/helpers.c)
     add_executable(channel_send_throughput tests/channel_send_throughput.c tests/helpers.c)
-    add_executable(sock_sendv_perf tests/sock_sendv_perf.c tests/ss_blackhole_server.c tests/ss_server.c tests/helpers.c)
+    add_executable(sock_sendv_perf tests/sock_sendv_perf.c tests/rs_blackhole_server.c tests/rs_server.c tests/helpers.c)
 
     foreach(TARGET channel_recv_throughput channel_send_throughput sock_sendv_perf zv_benchmarks zv_tests)
         add_dependencies(${TARGET} zv)
