@@ -1,4 +1,4 @@
-#include "ss_server.h"
+#include "rs_server.h"
 #include "helpers.h"
 #include "zv/os_thread.h"
 #include "zv/array.h"
@@ -9,7 +9,7 @@
 #include <fcntl.h>
 #endif
 
-struct ss_server_s
+struct rs_server_s
 {
     void (*accept_handler)(struct ss_client_s*);
     void (*input_handler)(struct ss_client_s*, const void*, size_t);
@@ -21,9 +21,9 @@ struct ss_server_s
 };
 
 
-static void * _ss_server_thread_func(void * arg)
+static void * _rs_server_thread_func(void * arg)
 {
-    struct ss_server_s * server = arg;
+    struct rs_server_s * server = arg;
     struct ss_client_s * clients = NULL;
     size_t buffer_size = (64 * 1024);
     void * buffer = malloc(buffer_size);
@@ -180,8 +180,8 @@ static void * _ss_server_thread_func(void * arg)
 }
 
 
-static int _ss_server_init(
-    ss_server_t * server,
+static int _rs_server_init(
+    rs_server_t * server,
     in_port_t * port,
     void (*accept_handler)(struct ss_client_s*),
     void (*input_handler)(struct ss_client_s*, const void*, size_t),
@@ -240,7 +240,7 @@ static int _ss_server_init(
                         rc = pthread_create(
                             &server->thread,
                             NULL,
-                            &_ss_server_thread_func,
+                            &_rs_server_thread_func,
                             server
                         );
                         if (rc == 0)
@@ -277,17 +277,17 @@ static int _ss_server_init(
 }
 
 
-ss_server_t * ss_server_create(
+rs_server_t * rs_server_create(
     in_port_t * port,
     void (*accept_handler)(struct ss_client_s*),
     void (*input_handler)(struct ss_client_s*, const void*, size_t),
     void (*write_handler)(struct ss_client_s*),
     void (*close_handler)(struct ss_client_s*)
 ) {
-    struct ss_server_s * server = malloc(sizeof(struct ss_server_s));
+    struct rs_server_s * server = malloc(sizeof(*server));
     if (server != NULL)
     {
-        int rc = _ss_server_init(
+        int rc = _rs_server_init(
             server,
             port,
             accept_handler,
@@ -306,7 +306,7 @@ ss_server_t * ss_server_create(
 }
 
 
-void ss_server_stop_and_destroy(ss_server_t * server)
+void rs_server_stop_and_destroy(rs_server_t * server)
 {
     char cmd = 0;
 #if defined(_WIN32)

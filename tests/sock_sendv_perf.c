@@ -1,31 +1,27 @@
 #include "zv/os_socket.h"
 #include "zv/os_thread.h"
-#include "ss_blackhole_server.h"
+#include "rs_blackhole_server.h"
 #include "helpers.h"
 #include <stdint.h>
 #include <stdio.h>
 
 #if defined(_WIN32)
 #define IOV_MAX 1024
+#define iovec _WSABUF
 #else
 #include <sys/uio.h>
 #include <limits.h>
 #endif
 
-#if defined(_WIN32)
-static inline WSABUF make_iovec(char * ptr, size_t len)
-{
-    WSABUF ret = { .buf = ptr, .len = (ULONG)len };
-    return ret;
-}
-#else
 static inline struct iovec make_iovec(char * ptr, size_t len)
 {
+#if defined(_WIN32)
+    WSABUF ret = { .buf = ptr, .len = (ULONG)len };
+#else
     struct iovec ret = { .iov_base = ptr, .iov_len = len };
+#endif
     return ret;
 }
-#endif
-
 
 static long run_test(
     in_port_t server_port,
@@ -40,11 +36,7 @@ static long run_test(
         return -1;
     }
 
-#if defined(_WIN32)
-    WSABUF * iov = malloc(sizeof(WSABUF) * iovc_max);
-#else
     struct iovec * iov = malloc(sizeof(struct iovec) * iovc_max);
-#endif
     if (iov == NULL)
     {
         fprintf(stderr, "malloc() failed\n");
@@ -137,7 +129,7 @@ int main(int argc, const char * argv[])
 #endif
 
     in_port_t server_port;
-    ss_blackhole_server_t * server = ss_blackhole_server_create(&server_port);
+    rs_blackhole_server_t * server = rs_blackhole_server_create(&server_port);
     if (server == NULL)
     {
         fprintf(stderr, "ss_blackhole_server_create() failed\n");
@@ -164,7 +156,7 @@ int main(int argc, const char * argv[])
         block_size *= 2;
     }
 
-    ss_blackhole_server_stop_and_destroy(server);
+    rs_blackhole_server_stop_and_destroy(server);
 
 #if defined(_WIN32)
     WSACleanup();
