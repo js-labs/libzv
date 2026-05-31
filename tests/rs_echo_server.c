@@ -1,31 +1,30 @@
-#include "ss_echo_server.h"
-#include "ss_server.h"
+#include "rs_echo_server.h"
+#include "rs_server.h"
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <assert.h>
 
 #if defined(_WIN32)
-#define IOV_MAX 64
-
+#define IOV_MAX 1024
 #define iovec _WSABUF 
-
-static inline WSABUF make_iovec(char * ptr, size_t len)
-{
-    WSABUF ret = { .buf = ptr, .len = (ULONG)len };
-    return ret;
-}
-
 #else
 #include <limits.h>
 #include <string.h>
 #include <sys/uio.h>
-static inline struct iovec make_iovec(char* ptr, size_t len)
+#endif
+
+
+static inline struct iovec make_iovec(char * ptr, size_t len)
 {
+#if defined(_WIN32)
+    WSABUF ret = { .buf = ptr, .len = (ULONG)len };
+#else
     struct iovec ret = { .iov_base = ptr, .iov_len = len };
+#endif
     return ret;
 }
-#endif
+
 
 struct data_block_s
 {
@@ -43,7 +42,7 @@ struct extra_data_s
 };
 
 
-static void _ss_echo_server_accept_handler(struct ss_client_s * client)
+static void _rs_echo_server_accept_handler(struct ss_client_s * client)
 {
     struct extra_data_s * extra_data = malloc(sizeof(*extra_data));
     if (extra_data == NULL)
@@ -58,7 +57,7 @@ static void _ss_echo_server_accept_handler(struct ss_client_s * client)
 }
 
 
-static void _ss_echo_server_input_handler(
+static void _rs_echo_server_input_handler(
     struct ss_client_s * client,
     const void * data,
     size_t size
@@ -111,7 +110,7 @@ static void _ss_echo_server_input_handler(
 }
 
 
-void _ss_echo_server_write_handler(struct ss_client_s * client)
+void _rs_echo_server_write_handler(struct ss_client_s * client)
 {
     struct extra_data_s * extra_data = client->extra_data;
     struct data_block_s * data_block = extra_data->sq_head;
@@ -175,7 +174,7 @@ void _ss_echo_server_write_handler(struct ss_client_s * client)
 }
 
 
-void _ss_echo_server_close_handler(struct ss_client_s * client)
+void _rs_echo_server_close_handler(struct ss_client_s * client)
 {
     struct extra_data_s * extra_data = client->extra_data;
     // printf("received %zu bytes\n", extra_data->bytes_received);
@@ -190,22 +189,22 @@ void _ss_echo_server_close_handler(struct ss_client_s * client)
 }
 
 
-ss_echo_server_t * ss_echo_server_create(in_port_t * port)
+rs_echo_server_t * rs_echo_server_create(in_port_t * port)
 {
-    ss_server_t * server = ss_server_create(
+    rs_server_t * server = rs_server_create(
         port,
-        &_ss_echo_server_accept_handler,
-        &_ss_echo_server_input_handler,
-        &_ss_echo_server_write_handler,
-        &_ss_echo_server_close_handler
+        &_rs_echo_server_accept_handler,
+        &_rs_echo_server_input_handler,
+        &_rs_echo_server_write_handler,
+        &_rs_echo_server_close_handler
     );
     if (server != NULL)
-        printf("TCP server (SS) started on port %hu\n", *port);
-    return (ss_echo_server_t*) server;
+        printf("TCP echo server (RS) started on port %hu\n", *port);
+    return server;
 }
 
 
-void ss_echo_server_stop_and_destroy(ss_echo_server_t * server)
+void rs_echo_server_stop_and_destroy(rs_echo_server_t * server)
 {
-    ss_server_stop_and_destroy((ss_server_t*) server);
+    rs_server_stop_and_destroy(server);
 }
