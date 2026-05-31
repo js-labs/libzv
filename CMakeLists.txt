@@ -148,6 +148,13 @@ if(BUILD_TESTS)
         endif()
     endforeach()
 
+    add_executable(channel_out_queue_tests tests/channel_out_queue_tests.c src/buffer.c src/channel_out_queue.c)
+    set_property(TARGET channel_out_queue_tests PROPERTY C_STANDARD 11)
+    if(WIN32)
+        target_compile_definitions(channel_out_queue_tests PRIVATE WIN32_LEAN_AND_MEAN ZV_SUPPRESS_EXPORT)
+        target_compile_options(channel_out_queue_tests PRIVATE /experimental:c11atomics)
+    endif()
+
     include(CTest)
     add_test(NAME zv_tests COMMAND zv_tests)
 endif()

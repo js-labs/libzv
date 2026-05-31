@@ -20,11 +20,15 @@
 #if !defined(ZV_EXPORT_H)
 #define ZV_EXPORT_H
 
-#if defined (_WIN32)
-    #if defined(BUILDING_ZV_DLL)
-        #define ZV_EXPORT __declspec(dllexport)
+#if defined(_WIN32)
+    #if defined(ZV_SUPPRESS_EXPORT)
+        #define ZV_EXPORT
     #else
-        #define ZV_EXPORT __declspec(dllimport)
+        #if defined(BUILDING_ZV_DLL)
+            #define ZV_EXPORT __declspec(dllexport)
+        #else
+            #define ZV_EXPORT __declspec(dllimport)
+        #endif
     #endif
 #else
     #define ZV_EXPORT

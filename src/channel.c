@@ -386,13 +386,13 @@ static void _zv_channel_write_task(struct zv_thread_pool_task_s * task)
 #endif
     if (bytes_sent > 0)
     {
-        size_t bytes_remaining = zv_channel_out_queue_remove_data(out_queue, bytes_sent);
-        if (bytes_remaining == SIZE_MAX)
+        size_t blocks_remaining = zv_channel_out_queue_remove(out_queue, bytes_sent);
+        if (blocks_remaining == SIZE_MAX)
         {
             // queue is empty and closed
             zv_channel_release(channel);
         }
-        else if (bytes_remaining > 0)
+        else if (blocks_remaining > 0)
         {
             // queue is not empty,
             // but let's write remaining data later
@@ -785,6 +785,30 @@ int zv_channel_send(zv_channel_t * channel, const void * data, size_t size)
     }
 }
 
+/*
+ZV_EXPORT int zv_channel_send_buf(
+    zv_channel_t * channel,
+    const void * data,
+    size_t size,
+    void * ctx,
+    void (*after_send)(const void*, size_t, void*)
+) {
+    int rc = zv_channel_out_queue_add_buf(&channel->out_queue, data, size, ctx, after_send);
+    if (rc > 0)
+    {
+        // should start writting socket
+        zv_thread_pool_dispatch(channel->thread_pool, &channel->write_handler.task);
+        return 0;
+    }
+    else
+    {
+        // rc is either
+        // 0: data added, but there is a thread writting socket right now
+        // -1: channel is closed
+        return rc;
+    }
+}
+*/
 
 int zv_channel_send_sync(zv_channel_t * channel, const void * data, size_t size)
 {
