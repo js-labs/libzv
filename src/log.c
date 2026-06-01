@@ -93,7 +93,8 @@ struct zv_log_backend_s
 {
     struct zv_log_backend_s * next;
     void (*func)(struct zv_log_event_s *, void *);
-    void * ctx;
+    void (*flush)(void*);
+    void * thunk;
 };
 
 
@@ -122,7 +123,7 @@ static void * _zv_log_worker(void * arg)
                 struct zv_log_backend_s * backend = log->backend;
                 while (backend != NULL)
                 {
-                    backend->func(log_event, backend->ctx);
+                    backend->func(log_event, backend->thunk);
                     backend = backend->next;
                 }
             }
@@ -160,7 +161,12 @@ static void * _zv_log_worker(void * arg)
             }
             else if (log_event->type == zv_log_event_type_flush)
             {
-                // do nothing
+                struct zv_log_backend_s * backend = log->backend;
+                while (backend != NULL)
+                {
+                    backend->flush(backend->thunk);
+                    backend = backend->next;
+                }
             }
 
             struct zv_log_event_s * next = atomic_load(&log_event->next);
@@ -262,6 +268,9 @@ zv_log_event_t * zv_log_event_create(
     va_end(ap);
 
     struct zv_log_event_s * log_event = malloc(sizeof(struct zv_log_event_s) + len + 1);
+    if (log_event == NULL)
+        return NULL;
+
     log_event->next = NULL;
     log_event->type = zv_log_event_type_log;
     log_event->log.layer = layer;
@@ -288,14 +297,18 @@ zv_log_event_t * zv_log_event_create(
 }
 
 
-zv_log_backend_t * zv_log_add_backend(void (*func)(zv_log_event_t *, void *), void * ctx)
-{
+zv_log_backend_t * zv_log_add_backend(
+    void (*func)(zv_log_event_t *, void *),
+    void (*flush)(void*),
+    void * thunk
+) {
     struct zv_log_backend_s * backend = malloc(sizeof(struct zv_log_backend_s));
     if (backend)
     {
         backend->next = NULL;
         backend->func = func;
-        backend->ctx = ctx;
+        backend->flush = flush;
+        backend->thunk = thunk;
 
         struct zv_log_event_s * log_event = malloc(sizeof(struct zv_log_event_s));
         if (log_event)
@@ -313,7 +326,7 @@ zv_log_backend_t * zv_log_add_backend(void (*func)(zv_log_event_t *, void *), vo
 }
 
 
-static void _zv_log_file_backend_func(zv_log_event_t * log_event, void * ctx)
+static void _zv_log_file_backend_func(zv_log_event_t * log_event, void * thunk)
 {
     char time_str[32];
     struct tm tm;
@@ -327,7 +340,7 @@ static void _zv_log_file_backend_func(zv_log_event_t * log_event, void * ctx)
     size_t len = strftime(time_str, sizeof(time_str), "%H:%M:%S", &tm);
     snprintf(time_str + len, sizeof(time_str) - len, ".%06d", (int) log_event->log.tv.tv_usec);
 
-    FILE * file = (FILE*) ctx;
+    FILE * file = (FILE*) thunk;
     const char * text = (const char*) (log_event + 1);
     fprintf(file, "%s <%s> [%d] %s: %s\n",
         time_str,
@@ -339,13 +352,24 @@ static void _zv_log_file_backend_func(zv_log_event_t * log_event, void * ctx)
 }
 
 
-zv_log_backend_t * zv_log_add_file_backend(FILE * file)
+static void _zv_log_file_backend_flush(void * thunk)
 {
-    return zv_log_add_backend(&_zv_log_file_backend_func, file);
+    FILE * file = (FILE*) thunk;
+    fflush(file);
 }
 
 
-int zv_log_remove_backend(zv_log_backend_t * backend, void ** pctx)
+zv_log_backend_t * zv_log_add_file_backend(FILE * file)
+{
+    return zv_log_add_backend(
+        &_zv_log_file_backend_func,
+        &_zv_log_file_backend_flush,
+        file
+    );
+}
+
+
+int zv_log_remove_backend(zv_log_backend_t * backend, void ** pthunk)
 {
     struct zv_log_event_s log_event;
     log_event.next = NULL;
@@ -360,8 +384,8 @@ int zv_log_remove_backend(zv_log_backend_t * backend, void ** pctx)
 
         if (log_event.remove_backend.backend != NULL)
         {
-            if (pctx)
-                *pctx = log_event.remove_backend.backend->ctx;
+            if (pthunk)
+                *pthunk = log_event.remove_backend.backend->thunk;
             free(log_event.remove_backend.backend);
             return 0;
         }
