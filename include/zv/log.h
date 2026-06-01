@@ -55,9 +55,14 @@ ZV_EXPORT zv_log_event_t * zv_log_event_create(
 
 typedef struct zv_log_backend_s zv_log_backend_t;
 
-ZV_EXPORT zv_log_backend_t * zv_log_add_backend(void (*func)(zv_log_event_t *, void*), void * ctx);
+ZV_EXPORT zv_log_backend_t * zv_log_add_backend(
+    void (*func)(zv_log_event_t *, void*),
+    void (*flush)(void*),
+    void * thunk
+);
+
 ZV_EXPORT zv_log_backend_t * zv_log_add_file_backend(FILE * file);
-ZV_EXPORT int zv_log_remove_backend(zv_log_backend_t * backend, void ** pctx);
+ZV_EXPORT int zv_log_remove_backend(zv_log_backend_t * backend, void ** pthunk);
 ZV_EXPORT FILE * zv_log_remove_file_backend(zv_log_backend_t * backend);
 
 ZV_EXPORT void zv_log(zv_log_event_t * log_event);
