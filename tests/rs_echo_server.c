@@ -110,7 +110,7 @@ static void _rs_echo_server_input_handler(
 }
 
 
-void _rs_echo_server_write_handler(struct ss_client_s * client)
+static void _rs_echo_server_write_handler(struct ss_client_s * client)
 {
     struct extra_data_s * extra_data = client->extra_data;
     struct data_block_s * data_block = extra_data->sq_head;
@@ -174,7 +174,7 @@ void _rs_echo_server_write_handler(struct ss_client_s * client)
 }
 
 
-void _rs_echo_server_close_handler(struct ss_client_s * client)
+static void _rs_echo_server_close_handler(struct ss_client_s * client)
 {
     struct extra_data_s * extra_data = client->extra_data;
     // printf("received %zu bytes\n", extra_data->bytes_received);
@@ -200,11 +200,11 @@ rs_echo_server_t * rs_echo_server_create(in_port_t * port)
     );
     if (server != NULL)
         printf("TCP echo server (RS) started on port %hu\n", *port);
-    return server;
+    return (rs_echo_server_t*)server;
 }
 
 
 void rs_echo_server_stop_and_destroy(rs_echo_server_t * server)
 {
-    rs_server_stop_and_destroy(server);
+    rs_server_stop_and_destroy((rs_server_t*)server);
 }
