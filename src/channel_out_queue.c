@@ -208,10 +208,11 @@ static size_t _zv_channel_out_queue_add_data(
                         iovc--;
                     }
                 }
+                space = (buffer_size - offs);
+                size -= space;
             }
 
-            size_t bytes = (size - space);
-            struct zv_buffer_s * buffer = zv_buffer_cache_get_for(out_queue->buffer_cache, bytes);
+            struct zv_buffer_s * buffer = zv_buffer_cache_get_for(out_queue->buffer_cache, size);
             space = buffer_size;
             out_queue->tail->next = buffer;
             void * dst = (buffer + 1);
@@ -285,10 +286,11 @@ static size_t _zv_channel_out_queue_add_data(
         void * dst = ((char*)(out_queue->tail + 1)) + offs;
         for (;;)
         {
-            memcpy(dst, iovec_get_base(iov), iovec_get_len(iov));
+            size_t iov_len = iovec_get_len(iov);
+            memcpy(dst, iovec_get_base(iov), iov_len);
             if (--iovc == 0)
                 break;
-            dst = ((char*)dst) + iovec_get_len(iov);
+            dst = ((char*)dst) + iov_len;
             iov++;
         }
 
@@ -351,6 +353,7 @@ int zv_channel_out_queue_add_data(
         size_t new_state = (state + blocks_ready);
         if (atomic_compare_exchange_strong(&out_queue->state, &state, new_state))
         {
+            blocks_ready = (new_state & STATE_SIZE_MASK);
             if ((state & STATE_SIZE_MASK) == 0)
                 return 1;
             else
@@ -430,6 +433,12 @@ int zv_channel_out_queue_get_data(
                 iov++;
                 ptr += data_size;
                 cc -= data_size;
+                if (cc == 0)
+                {
+                    buffer = buffer->next;
+                    ptr = (unsigned char*) (buffer + 1);
+                    cc = buffer_size;
+                }
             }
         }
         else if (block_type == 1)
@@ -437,7 +446,10 @@ int zv_channel_out_queue_get_data(
             abort();
         }
         else
+        {
+            zv_log_flush();
             abort();
+        }
 
         if (--blocks == 0)
             break;
@@ -583,7 +595,7 @@ size_t zv_channel_out_queue_remove(
             {
                 block_size -= bytes;
                 buffer_cursor_move(&bc, bytes);
-                // encode block type with the remaining size
+                // encode block header with the remaining size
                 size_t shift = 7 * (uleb128_size(block_size) - 1);
                 unsigned char cont_flag = 0;
                 for (;;)
@@ -621,9 +633,9 @@ size_t zv_channel_out_queue_remove(
         return 1;
 
     size_t state = atomic_fetch_sub(&out_queue->state, blocks) - blocks;
-    blocks = (state & STATE_SIZE_MASK);
-    if (blocks > 0)
-        return blocks;
+    size_t blocks_remaining = (state & STATE_SIZE_MASK);
+    if (blocks_remaining > 0)
+        return blocks_remaining;
     else if (state & STATE_FLAG_CLOSE)
         return SIZE_MAX;
     else
