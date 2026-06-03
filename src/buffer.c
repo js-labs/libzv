@@ -19,6 +19,7 @@
 
 #include "zv/buffer.h"
 #include "zv/os_thread.h"
+#include "zv/log.h"
 #include <assert.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -28,6 +29,8 @@
 #else
 #include <stdatomic.h>
 #endif
+
+static struct zv_log_layer_s _zv_buffer_cache_log = { "xv.buffer_cache", zv_log_level_warning };
 
 struct zv_buffer_cache_s
 {
@@ -107,9 +110,10 @@ void zv_buffer_cache_release(zv_buffer_cache_t * buffer_cache)
             buffer = next;
         }
         pthread_mutex_destroy(&buffer_cache->lock);
-        assert(buffer_cache->in_use == 0);
+
         /*
-        printf(
+        ZV_LOG_DEBUG(
+            _zv_buffer_cache_log,
             "buffer_cache[0x%p] stats: gets=%zu gets_alloc=%zu puts=%zu puts_free=%zu\n",
             buffer_cache,
             buffer_cache->stats.gets,
@@ -118,6 +122,14 @@ void zv_buffer_cache_release(zv_buffer_cache_t * buffer_cache)
             buffer_cache->stats.puts_free
         );
         */
+
+        if (buffer_cache->in_use != 0)
+        {
+            ZV_LOG_WARNING(_zv_buffer_cache_log, "leaked %zu buffers", buffer_cache->in_use);
+            zv_log_flush();
+            assert(0);
+        }
+
         free(buffer_cache);
     }
 }
@@ -148,7 +160,7 @@ struct zv_buffer_s * zv_buffer_cache_get(zv_buffer_cache_t * buffer_cache)
         buffer_cache->stats.gets_alloc++;
         pthread_mutex_unlock(&buffer_cache->lock);
         struct zv_buffer_s * buffer = malloc(sizeof(struct zv_buffer_s) + buffer_cache->buffer_size);
-        if (buffer)
+        if (buffer != NULL)
         {
             buffer->next = NULL;
             return buffer;
@@ -287,4 +299,10 @@ void zv_buffer_cache_put(zv_buffer_cache_t * buffer_cache, struct zv_buffer_s * 
             break;
         buffer = next;
     }
+}
+
+
+void zv_buffer_cache_set_log_level(zv_log_level_t level)
+{
+    _zv_buffer_cache_log.level = level;
 }
