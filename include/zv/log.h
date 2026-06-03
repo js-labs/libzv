@@ -24,7 +24,7 @@
 #include <stdio.h>
 #include "zv/export.h"
 
-typedef enum
+typedef enum zv_log_level_e
 {
     zv_log_level_error = 1,
     zv_log_level_warning,
