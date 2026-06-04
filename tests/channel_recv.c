@@ -1,9 +1,10 @@
 #include "zv/buffer.h"
 #include "zv/channel.h"
 #include <errno.h>
-#include <string.h>
 #include <stdint.h>
-
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include "helpers.h"
 
 static void after_acceptor_stop(zv_acceptor_t * acceptor, void * arg)

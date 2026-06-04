@@ -21,7 +21,6 @@
 #define ZV_CHANNEL_H
 
 #include "zv/export.h"
-#include "zv/log.h"
 #include "zv/os_socket.h"
 
 typedef struct zv_loop_s zv_loop_t;
@@ -36,8 +35,6 @@ ZV_EXPORT zv_channel_t * zv_channel_create(
     void (*close_handler)(zv_channel_t*),
     void * extra_data
 );
-
-ZV_EXPORT void zv_channel_set_log_level(zv_log_level_t level);
 
 ZV_EXPORT void zv_channel_start(zv_channel_t * channel);
 ZV_EXPORT int zv_channel_stop(zv_channel_t * channel);
@@ -67,5 +64,8 @@ ZV_EXPORT int zv_channel_send_cb(
 );
 
 ZV_EXPORT int zv_channel_send_sync(zv_channel_t * channel, const void * data, size_t size);
+
+enum zv_log_level;
+ZV_EXPORT void zv_channel_set_log_level(enum zv_log_level level);
 
 #endif /* !defined(ZV_CHANNEL_H) */

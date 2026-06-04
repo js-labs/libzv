@@ -4,6 +4,7 @@
 #include "zv/loop.h"
 #include "zv/os_time.h"
 #include <stdint.h>
+#include <stdlib.h>
 #include <stdio.h>
 #include "helpers.h"
 

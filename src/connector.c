@@ -17,8 +17,9 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "zv/loop.h"
 #include "zv/connector.h"
+#include "zv/log.h"
+#include "zv/loop.h"
 #include "zv/thread_pool.h"
 #include "loop_int.h"
 #include "misc.h"
@@ -186,11 +187,6 @@ void zv_connector_destroy(zv_connector_t * connector)
     free(connector);
 }
 
-void zv_connector_set_log_level(zv_log_level_t level)
-{
-    _zv_connector_log.level = level;
-}
-
 zv_loop_t * zv_connector_get_loop(zv_connector_t * connector)
 {
     return connector->loop;
@@ -212,4 +208,9 @@ void zv_connector_start(zv_connector_t * connector)
     zv_thread_pool_task_init(&connector->handler.task, &_zv_connector_init_task);
     zv_thread_pool_t * thread_pool = connector->loop->thread_pool;
     zv_thread_pool_dispatch(thread_pool, &connector->handler.task);
+}
+
+void zv_connector_set_log_level(enum zv_log_level level)
+{
+    _zv_connector_log.level = level;
 }

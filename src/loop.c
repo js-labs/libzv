@@ -164,12 +164,6 @@ int _zv_loop_init(
 }
 
 
-void zv_loop_set_log_level(zv_log_level_t level)
-{
-    _zv_loop_log.level = level;
-}
-
-
 enum zv_loop_type_e zv_loop_get_type(zv_loop_t * loop)
 {
     return loop->get_type(loop);
@@ -313,4 +307,10 @@ void zv_loop_destroy(zv_loop_t * loop)
     zv_timer_pool_destroy(loop->timer_pool);
     zv_thread_pool_destroy(loop->thread_pool);
     free(loop);
+}
+
+
+void zv_loop_set_log_level(enum zv_log_level level)
+{
+    _zv_loop_log.level = level;
 }

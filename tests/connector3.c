@@ -19,6 +19,8 @@
 
 #include "zv/connector.h"
 #include <errno.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include "helpers.h"
 
 #if defined(_WIN32)

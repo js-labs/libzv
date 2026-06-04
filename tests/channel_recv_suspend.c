@@ -3,9 +3,10 @@
 #include "zv/config.h"
 #include "zv/os_time.h"
 #include <errno.h>
-#include <string.h>
 #include <stdint.h>
-
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include "helpers.h"
 
 // Test reproduces channel suspension.

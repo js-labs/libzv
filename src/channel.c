@@ -19,6 +19,7 @@
 
 #include "zv/buffer.h"
 #include "zv/channel.h"
+#include "zv/log.h"
 #include "zv/loop.h"
 #include "zv/thread_pool.h"
 #include "loop_int.h"
@@ -587,12 +588,6 @@ zv_channel_t * zv_channel_create(
 }
 
 
-void zv_channel_set_log_level(zv_log_level_t level)
-{
-    _zv_channel_log.level = level;
-}
-
-
 void zv_channel_start(zv_channel_t * channel)
 {
     // We need 3 extra reference count:
@@ -829,4 +824,10 @@ int zv_channel_send_sync(zv_channel_t * channel, const void * data, size_t size)
         // -1: channel is closed
         return rc;
     }
+}
+
+
+void zv_channel_set_log_level(enum zv_log_level level)
+{
+    _zv_channel_log.level = level;
 }

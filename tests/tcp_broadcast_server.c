@@ -4,6 +4,7 @@
 #include "zv/channel.h"
 #include "helpers.h"
 #include "tcp_broadcast_server.h"
+#include <stdio.h>
 
 struct tcp_broadcast_server_s
 {

@@ -23,6 +23,8 @@
 #include "udp_echo_server.h"
 #include "helpers.h"
 #include "histogram.h"
+#include <stdio.h>
+#include <stdlib.h>
 
 #define WARMUP_PACKETS 100
 #define TEST_PACKETS 1000

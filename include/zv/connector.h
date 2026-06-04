@@ -21,7 +21,6 @@
 #define ZV_CONNECTOR_H
 
 #include "zv/export.h"
-#include "zv/log.h"
 #include "zv/os_socket.h"
 
 typedef struct zv_loop_s zv_loop_t;
@@ -38,12 +37,13 @@ ZV_EXPORT zv_connector_t * zv_connector_create(
 
 ZV_EXPORT void zv_connector_destroy(zv_connector_t * connector);
 
-ZV_EXPORT void zv_connector_set_log_level(zv_log_level_t level);
-
 ZV_EXPORT zv_loop_t * zv_connector_get_loop(zv_connector_t * connector);
 ZV_EXPORT void * zv_connector_get_extra_data(zv_connector_t * connector);
 ZV_EXPORT const struct sockaddr * zv_connector_get_addr(zv_connector_t * connector, socklen_t * addrlen);
 
 ZV_EXPORT void zv_connector_start(zv_connector_t * connector);
+
+enum zv_log_level;
+ZV_EXPORT void zv_connector_set_log_level(enum zv_log_level level);
 
 #endif /* !defined(ZV_CONNECTOR_H) */
