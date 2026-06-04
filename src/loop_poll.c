@@ -20,6 +20,7 @@
 #if !defined(__APPLE__)
 
 #include "buffer_set/buffer_set.h"
+#include "zv/log.h"
 #include "zv/loop.h"
 #include <assert.h>
 

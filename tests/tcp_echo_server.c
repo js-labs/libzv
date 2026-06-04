@@ -7,6 +7,7 @@
 #include "rs_echo_server.h"
 
 #include <assert.h>
+#include <stdio.h>
 #include <errno.h>
 
 struct tcp_echo_server_zv_s

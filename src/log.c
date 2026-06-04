@@ -58,7 +58,7 @@ struct zv_log_event_s
         struct
         {
             const struct zv_log_layer_s * layer;
-            zv_log_level_t level;
+            enum zv_log_level level;
             pid_t thread_id;
             struct timeval tv;
             const char * file;
@@ -229,7 +229,7 @@ static struct zv_log_s * _zv_log_create()
 }
 
 
-const char * zv_log_level_get_name(zv_log_level_t level)
+const char * zv_log_level_get_name(enum zv_log_level level)
 {
     switch (level)
     {
@@ -256,7 +256,7 @@ const char * zv_log_level_get_name(zv_log_level_t level)
 
 zv_log_event_t * zv_log_event_create(
     const struct zv_log_layer_s * layer,
-    zv_log_level_t level,
+    enum zv_log_level level,
     const char * file,
     int line,
     const char * fmt, ...

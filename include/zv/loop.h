@@ -21,7 +21,6 @@
 #define ZV_LOOP_H
 
 #include "zv/export.h"
-#include "zv/log.h"
 #include <stddef.h>
 
 typedef struct zv_loop_s zv_loop_t;
@@ -29,8 +28,6 @@ typedef struct zv_thread_pool_s zv_thread_pool_t;
 typedef struct zv_timer_pool_s zv_timer_pool_t;
 
 struct zv_loop_config_s;
-
-ZV_EXPORT void zv_loop_set_log_level(zv_log_level_t level);
 
 ZV_EXPORT zv_loop_t * zv_loop_create(const struct zv_loop_config_s * config);
 
@@ -43,5 +40,8 @@ ZV_EXPORT void zv_loop_run(zv_loop_t * loop);
 ZV_EXPORT void zv_loop_stop(zv_loop_t * loop);
 
 ZV_EXPORT void zv_loop_destroy(zv_loop_t * loop);
+
+enum zv_log_level;
+ZV_EXPORT void zv_loop_set_log_level(enum zv_log_level level);
 
 #endif /* !defined(ZV_LOOP_H) */

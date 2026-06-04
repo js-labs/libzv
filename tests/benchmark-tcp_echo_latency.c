@@ -21,6 +21,8 @@
 #include "helpers.h"
 #include "histogram.h"
 #include "zv/os_time.h"
+#include <stdio.h>
+#include <stdlib.h>
 
 #if !defined(_WIN32)
 #include <netinet/tcp.h>

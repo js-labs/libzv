@@ -9,8 +9,9 @@
 #define IOV_MAX 1024
 #define iovec _WSABUF
 #else
-#include <sys/uio.h>
 #include <limits.h>
+#include <stdlib.h>
+#include <sys/uio.h>
 #endif
 
 static inline struct iovec make_iovec(char * ptr, size_t len)
