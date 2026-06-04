@@ -48,6 +48,7 @@ ZV_EXPORT int zv_acceptor_stop(
 
 ZV_EXPORT void zv_acceptor_destroy(zv_acceptor_t * acceptor);
 
+enum zv_log_level;
 ZV_EXPORT void zv_acceptor_set_log_level(enum zv_log_level level);
 
 #endif /* !defined(ZV_ACCEPTOR_H) */

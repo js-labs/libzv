@@ -2,8 +2,9 @@
 #include "zv/channel.h"
 #include "zv/os_time.h"
 #include "helpers.h"
-#include <stdio.h>
 #include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 #if defined(_WIN32)
 #include <ws2ipdef.h>

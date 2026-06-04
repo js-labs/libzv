@@ -21,6 +21,7 @@
 #include "helpers.h"
 #include <errno.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #if defined(_WIN32)
 #include <ws2ipdef.h>

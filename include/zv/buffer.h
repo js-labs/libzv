@@ -44,6 +44,7 @@ ZV_EXPORT struct zv_buffer_s * zv_buffer_cache_get(zv_buffer_cache_t * buffer_ca
 ZV_EXPORT struct zv_buffer_s * zv_buffer_cache_get_for(zv_buffer_cache_t * buffer_cache, size_t size);
 ZV_EXPORT void zv_buffer_cache_put(zv_buffer_cache_t * buffer_cache, struct zv_buffer_s * buffer);
 
+enum zv_log_level;
 ZV_EXPORT void zv_buffer_cache_set_log_level(enum zv_log_level level);
 
 #endif /* !defined(ZV_BUFFER_H) */

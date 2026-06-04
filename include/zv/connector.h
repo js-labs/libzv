@@ -43,6 +43,7 @@ ZV_EXPORT const struct sockaddr * zv_connector_get_addr(zv_connector_t * connect
 
 ZV_EXPORT void zv_connector_start(zv_connector_t * connector);
 
+enum zv_log_level;
 ZV_EXPORT void zv_connector_set_log_level(enum zv_log_level level);
 
 #endif /* !defined(ZV_CONNECTOR_H) */

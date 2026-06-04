@@ -56,6 +56,7 @@ ZV_EXPORT const char * zv_channel_get_peer_addr_str(zv_channel_t * channel);
 ZV_EXPORT int zv_channel_send(zv_channel_t * channel, const void * data, size_t size);
 ZV_EXPORT int zv_channel_send_sync(zv_channel_t * channel, const void * data, size_t size);
 
+enum zv_log_level;
 ZV_EXPORT void zv_channel_set_log_level(enum zv_log_level level);
 
 #endif /* !defined(ZV_CHANNEL_H) */

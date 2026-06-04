@@ -41,6 +41,7 @@ ZV_EXPORT void zv_loop_stop(zv_loop_t * loop);
 
 ZV_EXPORT void zv_loop_destroy(zv_loop_t * loop);
 
+enum zv_log_level;
 ZV_EXPORT void zv_loop_set_log_level(enum zv_log_level level);
 
 #endif /* !defined(ZV_LOOP_H) */
