@@ -20,8 +20,9 @@
 #include "zv/connector.h"
 #include "helpers.h"
 #include <errno.h>
-#include <string.h>
 #include <stdint.h>
+#include <stdio.h>
+#include <string.h>
 
 #if defined(_WIN32)
 #include <ws2ipdef.h>

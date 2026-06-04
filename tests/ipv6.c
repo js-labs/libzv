@@ -22,8 +22,9 @@
 #include "zv/channel.h"
 #include "helpers.h"
 #include <errno.h>
-#include <string.h>
 #include <stdint.h>
+#include <stdio.h>
+#include <string.h>
 
 #if defined(__INTELLISENSE__)
 #define _Atomic
@@ -175,7 +176,7 @@ int ipv6()
     zv_loop_t * loop = zv_loop_create(NULL);
     if (!loop)
     {
-        printf("zv_loop_create() failed\n");
+        fprintf(stderr, "zv_loop_create() failed\n");
         return -1;
     }
 
@@ -224,14 +225,14 @@ int ipv6()
             }
             else
             {
-                printf("zv_connector_create() failed\n");
+                fprintf(stderr, "zv_connector_create() failed\n");
                 zv_acceptor_destroy(acceptor);
                 rc = -1;
             }
         }
         else
         {
-            printf("zv_acceptor_create() failed\n");
+            fprintf(stderr, "zv_acceptor_create() failed\n");
             rc = -1;
         }
             
@@ -239,7 +240,7 @@ int ipv6()
     }
     else
     {
-        printf("zv_buffer_cache_create()");
+        fprintf(stderr, "zv_buffer_cache_create()\n");
         rc = -1;
     }
 

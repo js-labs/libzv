@@ -23,6 +23,7 @@
 #include "zv/loop.h"
 #include "zv/os_time.h"
 #include <stdint.h>
+#include <stdio.h>
 #include <string.h>
 
 #if defined(__INTELLISENSE__)

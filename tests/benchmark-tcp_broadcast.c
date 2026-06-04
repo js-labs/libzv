@@ -54,6 +54,7 @@
 
 #include <assert.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <string.h>
 
 #include "tcp_broadcast_server.h"

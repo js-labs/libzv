@@ -302,7 +302,7 @@ void zv_buffer_cache_put(zv_buffer_cache_t * buffer_cache, struct zv_buffer_s * 
 }
 
 
-void zv_buffer_cache_set_log_level(zv_log_level_t level)
+void zv_buffer_cache_set_log_level(enum zv_log_level level)
 {
     _zv_buffer_cache_log.level = level;
 }

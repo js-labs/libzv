@@ -20,6 +20,7 @@
 #include "zv/acceptor.h"
 #include "helpers.h"
 #include <errno.h>
+#include <stdio.h>
 #include <string.h>
 
 #if defined(_WIN32)
@@ -82,12 +83,12 @@ int acceptor1()
             addr = make_sockaddr_in(INADDR_LOOPBACK, port);
             rc = connect(sockfd, (const struct sockaddr*) &addr, sizeof(addr));
             if (rc != 0)
-                printf("connect() failed");
+                fprintf(stderr, "connect() failed\n");
             zv_socket_close(sockfd);
         }
         else
         {
-            printf("socket() failed\n");
+            fprintf(stderr, "socket() failed\n");
             rc = -1;
         }
 
@@ -95,7 +96,7 @@ int acceptor1()
     }
     else
     {
-        printf("zv_acceptor_create() failed\n");
+        fprintf(stderr, "zv_acceptor_create() failed\n");
         zv_loop_stop(loop);
         rc = -1;
     }

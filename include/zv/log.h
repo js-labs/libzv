@@ -24,29 +24,28 @@
 #include <stdio.h>
 #include "zv/export.h"
 
-typedef enum zv_log_level_e
+enum zv_log_level
 {
     zv_log_level_error = 1,
     zv_log_level_warning,
     zv_log_level_info,
     zv_log_level_debug,
     zv_log_level_trace
-}
-zv_log_level_t;
+};
 
-ZV_EXPORT const char * zv_log_level_get_name(zv_log_level_t log_level);
+ZV_EXPORT const char * zv_log_level_get_name(enum zv_log_level log_level);
 
 struct zv_log_layer_s
 {
     const char * name;
-    zv_log_level_t level;
+    enum zv_log_level level;
 };
 
 typedef struct zv_log_event_s zv_log_event_t;
 
 ZV_EXPORT zv_log_event_t * zv_log_event_create(
     const struct zv_log_layer_s * layer,
-    zv_log_level_t level,
+    enum zv_log_level level,
     const char * file,
     int line,
     const char * fmt,
@@ -70,7 +69,7 @@ ZV_EXPORT void zv_log_flush();
 
 static inline int zv_log_level_enabled(
     const struct zv_log_layer_s * layer,
-    zv_log_level_t level
+    enum zv_log_level level
 ) {
     return (layer->level >= level);
 }

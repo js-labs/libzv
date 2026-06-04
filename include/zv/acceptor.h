@@ -21,7 +21,6 @@
 #define ZV_ACCEPTOR_H
 
 #include "zv/export.h"
-#include "zv/log.h"
 #include "zv/os_socket.h"
 
 typedef struct zv_loop_s zv_loop_t;
@@ -34,8 +33,6 @@ ZV_EXPORT zv_acceptor_t * zv_acceptor_create(
     void (*accept_handler)(zv_acceptor_t*, zv_socket_t sockfd),
     void * extra_data
 );
-
-ZV_EXPORT void zv_acceptor_set_log_level(zv_log_level_t level);
 
 ZV_EXPORT zv_loop_t * zv_acceptor_get_loop(zv_acceptor_t * acceptor);
 ZV_EXPORT in_port_t zv_acceptor_get_port(zv_acceptor_t * acceptor);
@@ -50,5 +47,7 @@ ZV_EXPORT int zv_acceptor_stop(
 );
 
 ZV_EXPORT void zv_acceptor_destroy(zv_acceptor_t * acceptor);
+
+ZV_EXPORT void zv_acceptor_set_log_level(enum zv_log_level level);
 
 #endif /* !defined(ZV_ACCEPTOR_H) */

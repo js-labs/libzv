@@ -9,6 +9,7 @@
 #endif
 
 #include <assert.h>
+#include <stdio.h>
 
 struct udp_echo_server_zv_s
 {

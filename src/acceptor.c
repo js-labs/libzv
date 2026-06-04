@@ -18,6 +18,7 @@
  */
 
 #include "zv/acceptor.h"
+#include "zv/log.h"
 #include "zv/loop.h"
 #include "zv/thread_pool.h"
 #include "loop_int.h"
@@ -197,12 +198,6 @@ zv_acceptor_t * zv_acceptor_create(
 }
 
 
-void zv_acceptor_set_log_level(zv_log_level_t level)
-{
-    _zv_acceptor_log.level = level;
-}
-
-
 zv_loop_t * zv_acceptor_get_loop(zv_acceptor_t * acceptor)
 {
     return acceptor->loop;
@@ -275,4 +270,10 @@ void zv_acceptor_destroy(zv_acceptor_t * acceptor)
 {
     zv_socket_close(acceptor->handler.sockfd);
     free(acceptor);
+}
+
+
+void zv_acceptor_set_log_level(enum zv_log_level level)
+{
+    _zv_acceptor_log.level = level;
 }
