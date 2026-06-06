@@ -5,11 +5,12 @@
 #include <time.h>
 #include "zv/buffer.h"
 #include "zv/channel.h"
+#include "zv/log.h"
 #include "zv/os_time.h"
 #include "helpers.h"
 
 static const char SEND_DATA[] = "Hello, world.";
-#define NUM_SEND_REQS (1000 * 1000)
+#define NUM_SEND_REQS (10 * 1000 * 1000)
 
 
 static void channel_input_handler(zv_channel_t * channel, const void * data, size_t size)
@@ -37,7 +38,7 @@ static void after_connect(zv_connector_t * connector, zv_socket_t sockfd)
     zv_loop_t * loop = zv_connector_get_loop(connector);
     zv_connector_destroy(connector);
 
-    zv_buffer_cache_t * buffer_cache = zv_buffer_cache_create(1024 * 8, 16, 4);
+    zv_buffer_cache_t * buffer_cache = zv_buffer_cache_create(16*1024, 16, 4);
     if (!buffer_cache)
         abort();
 
@@ -174,6 +175,13 @@ int main(int argc, const char * argv[])
         return -1;
 #endif
 
+    /*
+    FILE * file = fopen("channel_send_throughput.log", "w");
+    zv_log_backend_t * log_backend = zv_log_add_file_backend(file);
+    zv_channel_set_log_level(zv_log_level_debug);
+    zv_loop_set_log_level(zv_log_level_debug);
+    */
+
     rc = start_raw_server(&server_port, &server_thread, &server_thread_func);
     if (rc == 0)
     {
@@ -190,6 +198,15 @@ int main(int argc, const char * argv[])
     }
     else
         fprintf(stderr, "start_sock_server() failed\n");
+
+    /*
+    if (log_backend)
+    {
+        file = zv_log_remove_file_backend(log_backend);
+        if (file)
+            fclose(file);
+    }
+    */
 
 #if defined(_WIN32)
     WSACleanup();
