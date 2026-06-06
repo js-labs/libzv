@@ -51,6 +51,7 @@ struct zv_loop_config_s
     struct
     {
         struct zv_channel_in_queue_config_s in_queue;
+        size_t iov_max;
     }
     channel;
 
