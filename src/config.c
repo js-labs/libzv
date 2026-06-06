@@ -42,24 +42,26 @@ const struct zv_loop_config_s * zv_loop_config_get_default()
 {
     static const struct zv_loop_config_s config = 
     {
+        .loop_type =
 #if defined(_WIN32) || defined(__linux__)
-        zv_loop_type_poll,
+            zv_loop_type_poll,
 #else
-        zv_loop_type_select,
+            zv_loop_type_select,
 #endif
-        /* thread pool */
+        .thread_pool =
         {
-            0 // threads
+            .threads = 0 // evaluated depending on number of available cores
         },
-        /* channel */
+        .channel =
         {
-            /* in queue */
+            .in_queue =
             {
-                (128 * 1024), // low_watermark
-                (256 * 1024)  // high_watermark
-            }
+                .low_watermark = (128 * 1024),
+                .high_watermark = (256 * 1024)
+            },
+            .iov_max = 0 // use IOV_MAX
         },
-        /* timer pool */
+        .timer_pool =
         {
             0, // use specific clock
             0  // clockid

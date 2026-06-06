@@ -36,6 +36,10 @@
 #include <stdatomic.h>
 #endif
 
+#if defined(__linux__)
+#include <unistd.h>
+#endif
+
 struct zv_log_layer_s _zv_loop_log = { "xv.loop", zv_log_level_info };
 
 const char * zv_event_type_get_name(zv_event_type_t event_type)
@@ -143,21 +147,41 @@ int _zv_loop_init(
     if (thread_pool == NULL)
         return -1;
 
-    const clockid_t * clockid = config->timer_pool.use_custom_clock
-        ? &config->timer_pool.clockid
-        : NULL;
-
-    zv_timer_pool_t * timer_pool = zv_timer_pool_create(thread_pool, clockid);
-    if (timer_pool)
+    pthread_key_t tls_iov;
+    if (pthread_key_create(&tls_iov, &free) == 0)
     {
-        loop->config = *config;
-        loop->thread_pool = thread_pool;
-        loop->timer_pool = timer_pool;
-        loop->get_type = get_type;
-        loop->run = run;
-        loop->wakeup = wakeup;
-        loop->deinit = deinit;
-        return 0;
+        const clockid_t * clockid = config->timer_pool.use_custom_clock
+            ? &config->timer_pool.clockid
+            : NULL;
+
+        zv_timer_pool_t * timer_pool = zv_timer_pool_create(thread_pool, clockid);
+        if (timer_pool)
+        {
+            size_t iov_max = config->channel.iov_max;
+            if (iov_max == 0)
+                iov_max = 512;
+#if defined(_WIN32)
+#elif defined(__linux__)
+            size_t sys_iov_max = sysconf(_SC_IOV_MAX);
+            if (iov_max > sys_iov_max)
+                iov_max = sys_iov_max;
+#elif defined(__APPLE__)
+            if (iov_max > IOV_MAX)
+                iov_max = IOV_MAX;
+#endif
+            loop->config = *config;
+            loop->config.channel.iov_max = iov_max;
+            loop->thread_pool = thread_pool;
+            loop->timer_pool = timer_pool;
+            loop->get_type = get_type;
+            loop->run = run;
+            loop->wakeup = wakeup;
+            loop->deinit = deinit;
+            loop->tls_iov = tls_iov;
+
+            return 0;
+        }
+        pthread_key_delete(tls_iov);
     }
     zv_thread_pool_destroy(thread_pool);
     return -1;
@@ -305,6 +329,7 @@ void zv_loop_destroy(zv_loop_t * loop)
 {
     loop->deinit(loop);
     zv_timer_pool_destroy(loop->timer_pool);
+    pthread_key_delete(loop->tls_iov);
     zv_thread_pool_destroy(loop->thread_pool);
     free(loop);
 }
