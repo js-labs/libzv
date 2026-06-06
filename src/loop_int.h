@@ -22,6 +22,7 @@
 
 #include "zv/config.h"
 #include "zv/os_socket.h"
+#include "zv/os_thread.h"
 #include "zv/thread_pool.h"
 #include "zv/timer_pool.h"
 
@@ -172,6 +173,7 @@ struct zv_loop_s
     void (*wakeup)(struct zv_loop_s * loop);
     void (*deinit)(struct zv_loop_s * loop);
 
+    pthread_key_t tls_iov;
     struct zv_event_handler_s * _Atomic head;
     char _padding1[64 - sizeof(void*)];
     struct zv_event_handler_s * _Atomic tail_n_flag;

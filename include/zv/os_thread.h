@@ -35,6 +35,7 @@ typedef CRITICAL_SECTION pthread_mutex_t;
 typedef struct pthread_mutexattr_s pthread_mutexattr_t;
 typedef CONDITION_VARIABLE pthread_cond_t;
 typedef struct pthread_condattr_s { char _dummy; } pthread_condattr_t;
+typedef DWORD pthread_key_t;
 
 ZV_EXPORT int pthread_create(
     pthread_t * thread,
@@ -107,6 +108,7 @@ static inline int pthread_cond_timedwait(
         gettimeofday(&now, NULL);
         if (now.tv_sec > abstime->tv_sec)
             return ETIMEDOUT;
+
         const long now_ns = (now.tv_usec * 1000);
         if ((now.tv_sec == abstime->tv_sec) && (now_ns >= abstime->tv_nsec))
             return ETIMEDOUT;
@@ -157,6 +159,33 @@ static inline int pthread_condattr_init(pthread_condattr_t * condattr)
 static inline int pthread_condattr_destroy(pthread_condattr_t * condattr)
 {
     return 0;
+}
+
+static inline int pthread_key_create(pthread_key_t * key, void (*destructor)(void*))
+{
+    pthread_key_t k = FlsAlloc(destructor);
+    if (k == FLS_OUT_OF_INDEXES)
+        return GetLastError();
+    else
+    {
+        *key = k;
+        return 0;
+    }
+}
+
+static inline int pthread_key_delete(pthread_key_t key)
+{
+    return FlsFree(key) != 0;
+}
+
+static inline int pthread_setspecific(pthread_key_t key, const void * value)
+{
+    return FlsSetValue(key, (void*)value) != 0;
+}
+
+static inline void * pthread_getspecific(pthread_key_t key)
+{
+    return FlsGetValue(key);
 }
 
 static inline pid_t gettid()

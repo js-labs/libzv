@@ -40,10 +40,6 @@
 #include <stdatomic.h>
 #endif
 
-#if !defined(IOV_MAX)
-#define IOV_MAX 64
-#endif
-
 #if defined(_WIN32)
 
 #include <WS2tcpip.h>
@@ -72,6 +68,8 @@ struct zv_channel_s
     char * peer_addr_str;
 
     _Atomic size_t retain_count;
+    pthread_key_t tls_iov;
+    size_t iov_max;
 
     struct zv_event_handler_s read_handler;
 #if defined(_ZV_HAS_RDTSC)
@@ -361,8 +359,14 @@ static void _zv_channel_write_task(struct zv_thread_pool_task_s * task)
     struct zv_channel_s * channel = _zv_channel_by_write_task(task);
     struct zv_channel_out_queue_s * out_queue = &channel->out_queue;
 
-    struct iovec iov[IOV_MAX];
-    int iovc = zv_channel_out_queue_get_data(out_queue, iov, IOV_MAX);
+    size_t iov_max = channel->iov_max;
+    struct iovec * iov = pthread_getspecific(channel->tls_iov);
+    if (iov == NULL)
+    {
+        iov = malloc(sizeof(struct iovec) * iov_max);
+        pthread_setspecific(channel->tls_iov, iov);
+    }
+    int iovc = zv_channel_out_queue_get_data(out_queue, iov, iov_max);
     assert(iovc > 0);
 
 #if defined(_WIN32)
@@ -535,6 +539,8 @@ zv_channel_t * zv_channel_create(
     channel->peer_addr_str = strdup(buffer);
 
     channel->retain_count = 1;
+    channel->tls_iov = loop->tls_iov;
+    channel->iov_max = loop->config.channel.iov_max;
 
     _zv_event_handler_init(
         &channel->read_handler,
