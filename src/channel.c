@@ -319,7 +319,7 @@ void _zv_channel_read(
     struct zv_channel_s * channel = _ZV_CONTAINER_OF(read_handler, struct zv_channel_s, read_handler);
     struct zv_channel_read_stats_s * read_stats = &channel->read_stats;
     if ((read_stats->dispatch.count >= 10) &&
-        (read_stats->dispatch.cavg > read_stats->read.cavg))
+        (read_stats->dispatch.value > read_stats->read.value))
     {
         read_stats->dispatch_tsc = 0;
         read_handler->task.func(&read_handler->task);
@@ -342,14 +342,14 @@ static void _zv_channel_read_task(struct zv_thread_pool_task_s * task)
     if (dispatch_tsc != 0)
     {
         uint64_t elapsed_ticks = (start_tsc - dispatch_tsc);
-        _zv_cavg_append(&read_stats->dispatch, elapsed_ticks);
+        _zv_mavg_append(&read_stats->dispatch, elapsed_ticks);
         read_stats->async_reads++;
     }
 
     _zv_channel_read_task_i(task);
 
     uint64_t elapsed_ticks = (_zv_rdtsc() - start_tsc);
-    _zv_cavg_append(&read_stats->read, elapsed_ticks);
+    _zv_mavg_append(&read_stats->read, elapsed_ticks);
 }
 #endif /* defined(_ZV_HAS_RDTSC) */
 

@@ -110,37 +110,38 @@ static inline void _zv_event_handler_init(
 
 #if defined(_ZV_HAS_RDTSC)
 
-struct zv_cavg_s
+// moving average
+struct zv_mavg_s
 {
-    uint64_t cavg;
+    uint64_t value;
     size_t count;
 };
 
-static inline void _zv_cavg_init(struct zv_cavg_s * cavg)
+static inline void _zv_mavg_init(struct zv_mavg_s * mavg)
 {
-    cavg->cavg = 0;
-    cavg->count = 0;
+    mavg->value = 0;
+    mavg->count = 0;
 }
 
-static inline void _zv_cavg_append(struct zv_cavg_s * cavg, uint64_t value)
+static inline void _zv_mavg_append(struct zv_mavg_s * mavg, uint64_t value)
 {
-    size_t count = cavg->count;
-    uint64_t cc = ((cavg->cavg * count) + value);
+    size_t count = mavg->count;
+    uint64_t cc = ((mavg->value * count) + value);
     if (count < 15)
     {
         count++;
-        cavg->cavg = (cc / count);
-        cavg->count = count;
+        mavg->value = (cc / count);
+        mavg->count = count;
     }
     else
-        cavg->cavg = (cc >> 4);
+        mavg->value = (cc >> 4);
 }
 
 struct zv_channel_read_stats_s
 {
     uint64_t dispatch_tsc;
-    struct zv_cavg_s dispatch;
-    struct zv_cavg_s read;
+    struct zv_mavg_s dispatch;
+    struct zv_mavg_s read;
     size_t total_reads;
     size_t async_reads;
 };
@@ -149,8 +150,8 @@ static inline void _zv_channel_read_stats_init(
     struct zv_channel_read_stats_s * read_stats
 ) {
     read_stats->dispatch_tsc = 0;
-    _zv_cavg_init(&read_stats->dispatch);
-    _zv_cavg_init(&read_stats->read);
+    _zv_mavg_init(&read_stats->dispatch);
+    _zv_mavg_init(&read_stats->read);
     read_stats->total_reads = 0;
     read_stats->async_reads = 0;
 }
