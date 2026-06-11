@@ -59,32 +59,30 @@ static void after_fail(zv_connector_t * connector, int sockerr)
     printf("after_fail\n");
 }
 
-static void server_thread_func(zv_socket_t accept_socket)
+static void after_accept(zv_socket_t sockfd)
 {
-    zv_socket_t sockfd = accept(accept_socket, NULL, 0);
     char c;
     int rc = recv(sockfd, &c, sizeof(c), 0);
     zv_socket_close(sockfd);
-    zv_socket_close(accept_socket);
 }
 
 int connector1()
 {
-    in_port_t server_port;
-    pthread_t server_thread;
-    int rc = start_raw_server(&server_port, &server_thread, &server_thread_func);
+    in_port_t accept_port;
+    pthread_t accept_thread;
+    int rc = accept_async(&accept_port, &accept_thread, &after_accept);
     if (rc != 0)
     {
-        fprintf(stderr, "start_raw_server() failed\n");
+        fprintf(stderr, "accept_async() failed\n");
         return rc;
     }
 
-    printf("server started at port %hu\n", server_port);
+    printf("server started at port %hu\n", accept_port);
 
     zv_loop_t * loop = zv_loop_create(NULL);
     if (loop)
     {
-        struct sockaddr_in addr = make_sockaddr_in(INADDR_LOOPBACK, server_port);
+        struct sockaddr_in addr = make_sockaddr_in(INADDR_LOOPBACK, accept_port);
         zv_connector_t * connector = zv_connector_create(
             loop,
             (const struct sockaddr*) &addr,
@@ -99,9 +97,12 @@ int connector1()
         zv_loop_destroy(loop);
     }
     else
+    {
         fprintf(stderr, "zv_loop_create() failed\n");
+        rc = -1;
+    }
 
-    pthread_join(server_thread, NULL);
+    pthread_join(accept_thread, NULL);
 
-    return 0;
+    return rc;
 }

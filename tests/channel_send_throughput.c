@@ -177,7 +177,7 @@ static void after_connect(zv_connector_t * connector, zv_socket_t sockfd)
 }
 
 
-static void server_thread_func(zv_socket_t accept_socket)
+static void after_accept(zv_socket_t sockfd)
 {
     size_t buffer_size = (32 * 1024);
     char * buffer = malloc(buffer_size);
@@ -187,7 +187,6 @@ static void server_thread_func(zv_socket_t accept_socket)
         abort();
     }
 
-    zv_socket_t sockfd = accept(accept_socket, NULL, 0);
     const size_t bytes_expected = ((sizeof(struct timespec) + sizeof(SEND_DATA)) * NUM_SEND_MSGS);
     size_t bytes_received = 0;
 
@@ -236,7 +235,6 @@ static void server_thread_func(zv_socket_t accept_socket)
     }
 
     zv_socket_close(sockfd);
-    zv_socket_close(accept_socket);
 }
 
 
@@ -249,8 +247,8 @@ static void after_connect_fail(zv_connector_t* connector, int sockerr)
 
 int main(int argc, const char * argv[])
 {
-    in_port_t server_port;
-    pthread_t server_thread;
+    in_port_t accept_port;
+    pthread_t accept_thread;
     int rc;
 
 #if defined(_WIN32)
@@ -267,15 +265,15 @@ int main(int argc, const char * argv[])
     int send_ref = 0;
 #endif
 
-    rc = start_raw_server(&server_port, &server_thread, &server_thread_func);
+    rc = accept_async(&accept_port, &accept_thread, &after_accept);
     if (rc == 0)
     {
-        printf("server started at port %hu\n", server_port);
+        printf("server started at port %hu\n", accept_port);
 
         zv_loop_t * loop = zv_loop_create(NULL);
         if (loop != NULL)
         {
-            struct sockaddr_in addr = make_sockaddr_in(INADDR_LOOPBACK, server_port);
+            struct sockaddr_in addr = make_sockaddr_in(INADDR_LOOPBACK, accept_port);
             zv_connector_t * connector = zv_connector_create(
                 loop,
                 (struct sockaddr*) &addr,
@@ -301,10 +299,10 @@ int main(int argc, const char * argv[])
             fprintf(stderr, "zv_loop_create() failed\n");
 
         zv_loop_destroy(loop);
-        pthread_join(server_thread, NULL);
+        pthread_join(accept_thread, NULL);
     }
     else
-        fprintf(stderr, "start_sock_server() failed\n");
+        fprintf(stderr, "accept_async() failed\n");
 
     if (log_backend)
     {

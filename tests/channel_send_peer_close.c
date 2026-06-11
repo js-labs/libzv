@@ -16,30 +16,25 @@ static void server_channel_input_handler(zv_channel_t * channel, const void * da
     abort();
 }
 
-static void server_thread_func(zv_socket_t accept_socket)
+static void after_accept(zv_socket_t sockfd)
 {
     struct sockaddr_in peer_addr;
     socklen_t peer_addrlen = sizeof(peer_addr);
-    zv_socket_t sockfd = accept(accept_socket, (struct sockaddr*) &peer_addr, &peer_addrlen);
-    if (sockfd != INVALID_SOCKET)
+    struct sockaddr_in local_addr;
+    socklen_t local_addrlen = sizeof(local_addr);
+    if (getsockname(sockfd, (struct sockaddr*) &local_addr, &local_addrlen) == 0)
     {
-        struct sockaddr_in local_addr;
-        socklen_t local_addrlen = sizeof(local_addr);
-        if (getsockname(sockfd, (struct sockaddr*) &local_addr, &local_addrlen) == 0)
-        {
-            char peer_addr_str[INET_ADDRSTRLEN];
-            char local_addr_str[INET_ADDRSTRLEN];
-            zv_inet_ntop((struct sockaddr*) &peer_addr, peer_addrlen, peer_addr_str, sizeof(peer_addr_str));
-            zv_inet_ntop((struct sockaddr*) &local_addr, local_addrlen, local_addr_str, sizeof(local_addr_str));
-            printf("connection accepted: %s -> %s\n", local_addr_str, peer_addr_str);
+        char peer_addr_str[INET_ADDRSTRLEN];
+        char local_addr_str[INET_ADDRSTRLEN];
+        zv_inet_ntop((struct sockaddr*) &peer_addr, peer_addrlen, peer_addr_str, sizeof(peer_addr_str));
+        zv_inet_ntop((struct sockaddr*) &local_addr, local_addrlen, local_addr_str, sizeof(local_addr_str));
+        printf("connection accepted: %s -> %s\n", local_addr_str, peer_addr_str);
 
-            uint32_t msg;
-            recv(sockfd, (char*) &msg, sizeof(msg), 0);
-            usleep(500);
-        }
-        zv_socket_close(sockfd);
+        uint32_t msg;
+        recv(sockfd, (char*) &msg, sizeof(msg), 0);
+        usleep(500);
     }
-    zv_socket_close(accept_socket);
+    zv_socket_close(sockfd);
 }
 
 static void channel_input_handler(zv_channel_t * channel, const void * data, size_t size)
@@ -114,20 +109,20 @@ static void after_connect(zv_connector_t * connector, zv_socket_t sockfd)
 
 int channel_send_peer_close()
 {
-    in_port_t server_port;
-    pthread_t server_thread;
-    int rc = start_raw_server(&server_port, &server_thread, &server_thread_func);
+    in_port_t accept_port;
+    pthread_t accept_thread;
+    int rc = accept_async(&accept_port, &accept_thread, &after_accept);
     if (rc == 0)
     {
-        printf("server started at port %hu\n", server_port);
+        printf("server started at port %hu\n", accept_port);
 
-        zv_loop_t* loop = create_loop_and_connector(server_port, &after_connect);
+        zv_loop_t * loop = create_loop_and_connector(accept_port, &after_connect);
         zv_loop_run(loop);
         zv_loop_destroy(loop);
 
-        pthread_join(server_thread, NULL);
+        pthread_join(accept_thread, NULL);
     }
     else
-        fprintf(stderr, "start_raw_server() failed\n");
+        fprintf(stderr, "accept_async() failed\n");
     return 0;
 }
