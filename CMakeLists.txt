@@ -4,6 +4,7 @@ project(libzv LANGUAGES C)
 
 option(BUILD_TESTS "Build tests" ON)
 option(ASAN "Enable AddressSanitizer" OFF)
+option(CHANNEL_SEND_REF "Enable channel send ref" ON)
 
 include_directories(include)
 
@@ -31,7 +32,6 @@ set(LIB_SRCS
     src/channel_in_queue.h
     src/channel_in_queue.c
     src/channel_out_queue.h
-    src/channel_out_queue.c
     src/config.c
     src/connector.c
     src/log.c
@@ -49,6 +49,12 @@ set(LIB_SRCS
     src/timer_pool.c
 )
 
+if(CHANNEL_SEND_REF)
+    list(APPEND LIB_SRCS src/channel_out_queue_ex.c)
+else()
+    list(APPEND LIB_SRCS src/channel_out_queue.c)
+endif()
+
 # Disable tests for the buffer set library
 set(_BUILD_TESTS ${BUILD_TESTS})
 set(BUILD_TESTS OFF)
@@ -61,6 +67,9 @@ add_library(zv SHARED ${LIB_SRCS})
 target_compile_definitions(zv PRIVATE BUILDING_ZV_DLL)
 target_include_directories(zv PRIVATE thd/buffer_set/include)
 target_link_libraries(zv buffer_set)
+if(CHANNEL_SEND_REF)
+    target_compile_definitions(zv PUBLIC ZV_CHANNEL_SEND_REF)
+endif()
 
 if(ASAN)
     if(CMAKE_C_COMPILER_ID MATCHES "AppleClang|GNU|Clang")
@@ -146,13 +155,19 @@ if(BUILD_TESTS)
             target_compile_definitions(${TARGET} PRIVATE WIN32_LEAN_AND_MEAN)
             target_compile_options(${TARGET} PRIVATE /experimental:c11atomics)
         endif()
+        if(DEFINED ZV_CHANNEL_SEND_REF)
+            target_compile_definitions(${TARGET} PRIVATE ZV_CHANNEL_SEND_REF)
+        endif()
     endforeach()
 
-    add_executable(channel_out_queue_tests tests/channel_out_queue_tests.c src/buffer.c src/channel_out_queue.c)
-    set_property(TARGET channel_out_queue_tests PROPERTY C_STANDARD 11)
-    if(WIN32)
-        target_compile_definitions(channel_out_queue_tests PRIVATE WIN32_LEAN_AND_MEAN ZV_SUPPRESS_EXPORT)
-        target_compile_options(channel_out_queue_tests PRIVATE /experimental:c11atomics)
+    if(CHANNEL_SEND_REF)
+        add_executable(channel_out_queue_tests tests/channel_out_queue_tests.c src/buffer.c src/channel_out_queue_ex.c src/log.c src/os_time.c src/os_thread.c src/semaphore.c)
+        set_property(TARGET channel_out_queue_tests PROPERTY C_STANDARD 11)
+        target_compile_definitions(channel_out_queue_tests PRIVATE ZV_CHANNEL_SEND_REF)
+        if(WIN32)
+            target_compile_definitions(channel_out_queue_tests PRIVATE WIN32_LEAN_AND_MEAN ZV_SUPPRESS_EXPORT)
+            target_compile_options(channel_out_queue_tests PRIVATE /experimental:c11atomics)
+        endif()
     endif()
 
     include(CTest)

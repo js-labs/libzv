@@ -197,6 +197,13 @@ void * zv_connector_get_extra_data(zv_connector_t * connector)
     return connector->extra_data;
 }
 
+void * zv_connector_set_extra_data(zv_connector_t * connector, void * extra_data)
+{
+    void * ret = connector->extra_data;
+    connector->extra_data = extra_data;
+    return ret;
+}
+
 const struct sockaddr * zv_connector_get_addr(zv_connector_t * connector, socklen_t * addrlen)
 {
     *addrlen = connector->addrlen;

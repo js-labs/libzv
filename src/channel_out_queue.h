@@ -65,15 +65,13 @@ int zv_channel_out_queue_add_data(
     size_t size
 );
 
-/*
-int zv_channel_out_queue_add_buf(
+int zv_channel_out_queue_add_ref(
     struct zv_channel_out_queue_s * out_queue,
     const void * data,
     size_t size,
-    void * ctx,
-    void (*after_send)(void*, const void*, size_t)
+    void (*after_send)(void*),
+    void * thunk
 );
-*/
 
 int zv_channel_out_queue_get_data(
     struct zv_channel_out_queue_s * out_queue,

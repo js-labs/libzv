@@ -1,6 +1,7 @@
 
-#include "../src/channel_out_queue.h"
 #include "../include/zv/buffer.h"
+#include "../include/zv/log.h"
+#include "../src/channel_out_queue.h"
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -48,8 +49,13 @@ static void prepare_message(char * message, uint16_t size)
 }
 
 
-static int check_iov(size_t iovc, const struct iovec * iov, const size_t * expected_size, const char * file, int line)
-{
+static int check_iov(
+    size_t iovc,
+    const struct iovec * iov,
+    const size_t * expected_size,
+    const char * file,
+    int line
+) {
     for (size_t idx=0; idx<iovc; idx++)
     {
         size_t iov_len = iovec_get_len(iov);
@@ -73,69 +79,7 @@ static int check_iov(size_t iovc, const struct iovec * iov, const size_t * expec
 }
 
 
-int test1()
-{
-    zv_buffer_cache_t * buffer_cache = zv_buffer_cache_create(256, 16, 0);
-    struct zv_channel_out_queue_s out_queue;
-    zv_channel_out_queue_init(&out_queue, buffer_cache);
-
-    char message[50];
-    prepare_message(message, sizeof(message));
-
-    for (size_t idx=0; idx<2; idx++)
-        zv_channel_out_queue_add_data(&out_queue, message, sizeof(message));
-
-    struct iovec iov[IOV_MAX];
-    int iovc = zv_channel_out_queue_get_data(&out_queue, iov, IOV_MAX);
-    size_t total_size = 0;
-    for (int idx=0; idx<iovc; idx++)
-    {
-        size_t iov_len = iovec_get_len(&iov[idx]);
-        if (iov_len != sizeof(message))
-            abort();
-        total_size += iov_len;
-
-        const char * iov_base = iovec_get_base(&iov[idx]);
-        uint16_t message_size;
-        memcpy(&message_size, iov_base, sizeof(uint16_t));
-        if (message_size != sizeof(message))
-            abort();
-
-        for (size_t jdx=2; jdx<sizeof(message); jdx++)
-        {
-            if (iov_base[jdx] != jdx)
-                abort();
-        }
-    }
-
-    size_t blocks_remaining = zv_channel_out_queue_remove(&out_queue, total_size);
-
-    zv_channel_out_queue_deinit(&out_queue);
-    zv_buffer_cache_release(buffer_cache);
-    return 0;
-}
-
-
-int test_message_greater_than_buffer(struct zv_channel_out_queue_s * out_queue)
-{
-    char message[120];
-    prepare_message(message, sizeof(message));
-
-    zv_channel_out_queue_add_data(out_queue, message, sizeof(message));
-
-    struct iovec iov[IOV_MAX];
-    int iovc = zv_channel_out_queue_get_data(out_queue, iov, IOV_MAX);
-    size_t expected_sizes[3] = { 48, 50, 22 };
-    EXPECT_EQ(iovc, ARRAY_SIZE(expected_sizes));
-    EXPECT_IOV(iov, expected_sizes);
-    size_t blocks_remaining = zv_channel_out_queue_remove(out_queue, sizeof(message));
-    EXPECT_EQ(blocks_remaining, 0);
-
-    return 0;
-}
-
-
-int test_remove_part1(size_t buffer_size, struct zv_channel_out_queue_s * out_queue)
+static int test_remove1(size_t buffer_size, struct zv_channel_out_queue_s * out_queue)
 {
     EXPECT_EQ(buffer_size, 100);
     //    buffer1     buffer2     buffer3     buffer4
@@ -184,47 +128,93 @@ int test_remove_part1(size_t buffer_size, struct zv_channel_out_queue_s * out_qu
 }
 
 
-int test_remove_part2(struct zv_channel_out_queue_s * out_queue)
+static int test_remove2(size_t buffer_size, struct zv_channel_out_queue_s * out_queue)
 {
-    //   buffer1   buffer2   buffer3   buffer4
-    // |---------|---------|---------|---------|
-    //  <----------------------------->
-    //              message
-    // 
-    char message[157];
-    uint16_t message_size = sizeof(message);
-    memcpy(&message, &message_size, sizeof(message_size));
-    for (size_t idx=2; idx<message_size; idx++)
-        message[idx] = (char)idx;
+    EXPECT_EQ(buffer_size, 100);
 
-    zv_channel_out_queue_add_data(out_queue, message, sizeof(message));
+    // First message completely occupies two buffers
+    //   buffer1   buffer2   buffer3
+    // |---------|---------|---------|
+    //  <-----------------> <------>
+    //       message1        message2
+    // 
+    char message1[197];
+    for (size_t idx=0; idx<sizeof(message1); idx++)
+        message1[idx] = (char)idx;
+
+    char message2[42];
+    for (size_t idx=0; idx<sizeof(message2); idx++)
+        message2[idx] = (char)idx;
+
+    zv_channel_out_queue_add_data(out_queue, message1, sizeof(message1));
+    zv_channel_out_queue_add_data(out_queue, message2, sizeof(message2));
 
     struct iovec iov[IOV_MAX];
     int iovc = zv_channel_out_queue_get_data(out_queue, iov, IOV_MAX);
-    size_t expected_sizes[4] = { 47, 50, 50, 10 };
+    size_t expected_sizes[3] = { 97, 100, 42 };
     EXPECT_EQ(iovc, ARRAY_SIZE(expected_sizes));
+    EXPECT_IOV(iov, expected_sizes);
 
-    for (int idx=0; idx<iovc; idx++)
-    {
-        size_t iov_len = iovec_get_len(&iov[idx]);
-        if (iov_len != expected_sizes[idx])
-        {
-            fprintf(stderr, "iov[%d].len=%zu instead of %zu\n", idx, iov_len, expected_sizes[idx]);
-            return -1;
-        }
-    }
+    size_t blocks_remaining = zv_channel_out_queue_remove(out_queue, sizeof(message1) + sizeof(message2));
+    EXPECT_EQ(blocks_remaining, 0);
 
-    size_t bytes_to_remove = (expected_sizes[0] + expected_sizes[1] + expected_sizes[2] + 2);
-    size_t blocks_remaining = zv_channel_out_queue_remove(out_queue, bytes_to_remove);
-    if (blocks_remaining != 1)
-    {
-        fprintf(stderr, "got %zu remaining blocks instead of 1\n", blocks_remaining);
-        return -1;
-    }
+    return 0;
+}
+
+
+static void after_send(void * thunk)
+{
+    (*((int*)thunk))++;
+}
+
+static int test_cb(size_t buffer_size, struct zv_channel_out_queue_s * out_queue)
+{
+    EXPECT_EQ(buffer_size, 50);
+
+    char message[14];
+    for (size_t idx = 0; idx<sizeof(message); idx++)
+        message[idx] = (char)idx;
+
+    int after_send_called_times = 0;
+
+    zv_channel_out_queue_add_ref(
+        out_queue,
+        message,
+        sizeof(message),
+        &after_send,
+        &after_send_called_times
+    );
+
+    zv_channel_out_queue_add_ref(
+        out_queue,
+        message,
+        sizeof(message),
+        &after_send,
+        &after_send_called_times
+    );
+
+    size_t blocks_remaining;
+    struct iovec iov[IOV_MAX];
+    int iovc;
 
     iovc = zv_channel_out_queue_get_data(out_queue, iov, IOV_MAX);
-    EXPECT_EQ(iovc, 1);
-    EXPECT_EQ(iovec_get_len(&iov[0]), 8);
+    size_t expected_sizes_1[2] = { 14, 14 };
+    EXPECT_EQ(iovc, ARRAY_SIZE(expected_sizes_1));
+    EXPECT_IOV(iov, expected_sizes_1);
+
+    blocks_remaining = zv_channel_out_queue_remove(out_queue, sizeof(message) + sizeof(message)/2);
+    EXPECT_EQ(blocks_remaining, 1);
+    EXPECT_EQ(after_send_called_times, 1);
+
+    iovc = zv_channel_out_queue_get_data(out_queue, iov, IOV_MAX);
+    size_t expected_sizes_2[1] = { 7 };
+    EXPECT_EQ(iovc, ARRAY_SIZE(expected_sizes_2));
+    EXPECT_IOV(iov, expected_sizes_2);
+
+    after_send_called_times = 0;
+    blocks_remaining = zv_channel_out_queue_remove(out_queue, sizeof(message)/2);
+    EXPECT_EQ(blocks_remaining, 0);
+    EXPECT_EQ(after_send_called_times, 1);
 
     return 0;
 }
@@ -259,11 +249,27 @@ int run_test(
             fprintf(stderr, "test %s failed", #name); \
     } while (0)
 
-int main(int argc, const char* argv[])
+int main(int argc, const char * argv[])
 {
-    //RUN_TEST(50, test_message_greater_than_buffer);
-    RUN_TEST(100, test_remove_part1);
-    //RUN_TEST(50, test_remove_part2);
+    /*
+    FILE * file = fopen("channel_out_queue_tests.log", "w");
+    zv_log_backend_t * log_backend = zv_log_add_file_backend(file);
+    zv_buffer_cache_set_log_level(zv_log_level_debug);
+    */
+
+    RUN_TEST(100, test_remove1);
+    RUN_TEST(100, test_remove2);
+    RUN_TEST(50, test_cb);
+
+    /*
+    if (log_backend)
+    {
+        FILE * file = zv_log_remove_file_backend(log_backend);
+        if (file)
+            fclose(file);
+    }
+    */
+
     return 0;
 }
 
