@@ -259,7 +259,7 @@ static void * _accept_async_thread_func(void * _arg)
     else
     {
         zv_socket_close(accept_socket);
-        after_accept(accept_socket);
+        after_accept(sockfd);
     }
 
     return NULL;
