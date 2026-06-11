@@ -236,28 +236,40 @@ zv_loop_t * create_loop_and_connector(
 }
 
 
-struct raw_server_thread_arg_s
+struct accept_async_thread_arg_s
 {
-    void (*func)(zv_socket_t);
     zv_socket_t accept_socket;
+    void (*after_accept)(zv_socket_t);
 };
 
 
-static void * raw_server_thread_func(void * _arg)
+static void * _accept_async_thread_func(void * _arg)
 {
-    struct raw_server_thread_arg_s * arg = (struct raw_server_thread_arg_s*) _arg;
-    void (*func)(zv_socket_t) = arg->func;
+    struct accept_async_thread_arg_s * arg = _arg;
     zv_socket_t accept_socket = arg->accept_socket;
+    void (*after_accept)(zv_socket_t) = arg->after_accept;
     free(arg);
-    func(accept_socket);
+
+    zv_socket_t sockfd = accept(accept_socket, NULL, 0);
+    if (sockfd == INVALID_SOCKET)
+    {
+        fprintf(stderr, "accept() failed\n");
+        abort();
+    }
+    else
+    {
+        zv_socket_close(accept_socket);
+        after_accept(sockfd);
+    }
+
     return NULL;
 }
 
 
-int start_raw_server(
+int accept_async(
     in_port_t * port,
     pthread_t * thread,
-    void (*func)(zv_socket_t accept_socket)
+    void (*after_accept)(zv_socket_t sockfd)
 ) {
     zv_socket_t sockfd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     if (sockfd == INVALID_SOCKET)
@@ -275,12 +287,13 @@ int start_raw_server(
             rc = listen(sockfd, 1);
             if (rc == 0)
             {
-                struct raw_server_thread_arg_s * thread_arg = malloc(sizeof(struct raw_server_thread_arg_s));
+                struct accept_async_thread_arg_s * thread_arg;
+                thread_arg = malloc(sizeof(struct accept_async_thread_arg_s));
                 if (thread_arg)
                 {
-                    thread_arg->func = func;
                     thread_arg->accept_socket = sockfd;
-                    rc = pthread_create(thread, NULL, &raw_server_thread_func, thread_arg);
+                    thread_arg->after_accept = after_accept;
+                    rc = pthread_create(thread, NULL, &_accept_async_thread_func, thread_arg);
                     if (rc == 0)
                         return 0;
                     free(thread_arg);
