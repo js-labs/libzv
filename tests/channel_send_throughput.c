@@ -101,7 +101,7 @@ static void after_connect(zv_connector_t * connector, zv_socket_t sockfd)
 }
 
 
-static void after_accept(zv_socket_t sockfd)
+static void after_accept(zv_socket_t sockfd, void * thunk)
 {
     size_t buffer_size = (32 * 1024);
     char * buffer = malloc(buffer_size);
@@ -180,7 +180,7 @@ int main(int argc, const char * argv[])
     zv_loop_set_log_level(zv_log_level_debug);
     */
 
-    rc = accept_async(&accept_port, &accept_thread, &after_accept);
+    rc = accept_async(&accept_port, &accept_thread, &after_accept, NULL);
     if (rc == 0)
     {
         printf("server started at port %hu\n", accept_port);

@@ -40,7 +40,8 @@ zv_loop_t * create_loop_and_connector(
 int accept_async(
     in_port_t * port,
     pthread_t * thread,
-    void (*after_accept)(zv_socket_t sockfd)
+    void (*after_accept)(zv_socket_t, void*),
+    void * thunk
 );
 
 zv_socket_t sock_connect(in_addr_t in_addr, in_port_t in_port);
