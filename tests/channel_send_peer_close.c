@@ -16,7 +16,7 @@ static void server_channel_input_handler(zv_channel_t * channel, const void * da
     abort();
 }
 
-static void after_accept(zv_socket_t sockfd)
+static void after_accept(zv_socket_t sockfd, void * thunk)
 {
     struct sockaddr_in peer_addr;
     socklen_t peer_addrlen = sizeof(peer_addr);
@@ -111,7 +111,7 @@ int channel_send_peer_close()
 {
     in_port_t accept_port;
     pthread_t accept_thread;
-    int rc = accept_async(&accept_port, &accept_thread, &after_accept);
+    int rc = accept_async(&accept_port, &accept_thread, &after_accept, NULL);
     if (rc == 0)
     {
         printf("server started at port %hu\n", accept_port);

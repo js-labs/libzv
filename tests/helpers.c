@@ -188,7 +188,7 @@ zv_acceptor_t * start_acceptor_with_buffer_cache(
             return acceptor;
         }
 
-        printf("zv_acceptor_create() failed\n");
+        fprintf(stderr, "zv_acceptor_create() failed\n");
         zv_buffer_cache_release(buffer_cache);
     }
     return NULL;
@@ -239,7 +239,8 @@ zv_loop_t * create_loop_and_connector(
 struct accept_async_thread_arg_s
 {
     zv_socket_t accept_socket;
-    void (*after_accept)(zv_socket_t);
+    void (*after_accept)(zv_socket_t, void*);
+    void * thunk;
 };
 
 
@@ -247,7 +248,8 @@ static void * _accept_async_thread_func(void * _arg)
 {
     struct accept_async_thread_arg_s * arg = _arg;
     zv_socket_t accept_socket = arg->accept_socket;
-    void (*after_accept)(zv_socket_t) = arg->after_accept;
+    void (*after_accept)(zv_socket_t, void*) = arg->after_accept;
+    void * thunk = arg->thunk;
     free(arg);
 
     zv_socket_t sockfd = accept(accept_socket, NULL, 0);
@@ -259,7 +261,7 @@ static void * _accept_async_thread_func(void * _arg)
     else
     {
         zv_socket_close(accept_socket);
-        after_accept(sockfd);
+        after_accept(sockfd, thunk);
     }
 
     return NULL;
@@ -269,7 +271,8 @@ static void * _accept_async_thread_func(void * _arg)
 int accept_async(
     in_port_t * port,
     pthread_t * thread,
-    void (*after_accept)(zv_socket_t sockfd)
+    void (*after_accept)(zv_socket_t, void*),
+    void * thunk
 ) {
     zv_socket_t sockfd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     if (sockfd == INVALID_SOCKET)
@@ -293,6 +296,7 @@ int accept_async(
                 {
                     thread_arg->accept_socket = sockfd;
                     thread_arg->after_accept = after_accept;
+                    thread_arg->thunk = thunk;
                     rc = pthread_create(thread, NULL, &_accept_async_thread_func, thread_arg);
                     if (rc == 0)
                         return 0;
