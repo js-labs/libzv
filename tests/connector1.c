@@ -42,7 +42,7 @@ static void after_connect(zv_connector_t * connector, zv_socket_t sockfd)
     if (rc == 0)
         printf("connection established: %s -> %s\n", local_addr_str, peer_addr_str);
     else
-        printf("get_sock_names(%" PRIsocket ") failed: %d\n", sockfd, errno);
+        fprintf(stderr, "get_sock_names(%" PRIsocket ") failed: %d\n", sockfd, errno);
 
     const char c = 42;
     send(sockfd, &c, sizeof(c), 0);
@@ -59,7 +59,7 @@ static void after_fail(zv_connector_t * connector, int sockerr)
     printf("after_fail\n");
 }
 
-static void after_accept(zv_socket_t sockfd)
+static void after_accept(zv_socket_t sockfd, void * thunk)
 {
     char c;
     int rc = recv(sockfd, &c, sizeof(c), 0);
@@ -70,7 +70,7 @@ int connector1()
 {
     in_port_t accept_port;
     pthread_t accept_thread;
-    int rc = accept_async(&accept_port, &accept_thread, &after_accept);
+    int rc = accept_async(&accept_port, &accept_thread, &after_accept, NULL);
     if (rc != 0)
     {
         fprintf(stderr, "accept_async() failed\n");
