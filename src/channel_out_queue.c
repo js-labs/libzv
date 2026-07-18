@@ -297,7 +297,7 @@ int zv_channel_out_queue_get_data(
 }
 
 
-size_t zv_channel_out_queue_remove_data(
+size_t zv_channel_out_queue_remove(
     struct zv_channel_out_queue_s * out_queue,
     size_t bytes
 ) {

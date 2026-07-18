@@ -391,6 +391,7 @@ static void _zv_channel_write_task(struct zv_thread_pool_task_s * task)
 #endif
     if (bytes_sent > 0)
     {
+    #if defined(CHANNEL_SEND_REF)
         size_t blocks_remaining = zv_channel_out_queue_remove(out_queue, bytes_sent);
         if (blocks_remaining == SIZE_MAX)
         {
@@ -408,6 +409,25 @@ static void _zv_channel_write_task(struct zv_thread_pool_task_s * task)
         {
             // do nothing
         }
+    #else
+        size_t bytes_remaining = zv_channel_out_queue_remove(out_queue, bytes_sent);
+        if (bytes_remaining == SIZE_MAX)
+        {
+            // queue is empty and closed
+            zv_channel_release(channel);
+        }
+        else if (bytes_remaining > 0)
+        {
+            // queue is not empty,
+            // but let's write remaining data later
+            // allowing other tasks in the thread pool do their job
+            zv_thread_pool_dispatch(channel->thread_pool, &channel->write_handler.task);
+        }
+        else
+        {
+            // do nothing
+        }
+    #endif
     }
     else
     {
