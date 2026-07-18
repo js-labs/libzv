@@ -9,13 +9,13 @@
 
 #if defined(_WIN32)
 #include <Winsock2.h>
-#define iovec _WSABUF
 #define IOV_MAX 64
+#define iovec _WSABUF
 static inline size_t iovec_get_len(const struct iovec * iov) { return iov->len; }
 static inline void * iovec_get_base(const struct iovec * iov) { return iov->buf; }
 #else
-#include <sys/uio.h>
 #include <limits.h>
+#include <sys/uio.h>
 static inline size_t iovec_get_len(const struct iovec * iov) { return iov->iov_len; }
 static inline void * iovec_get_base(const struct iovec * iov) { return iov->iov_base; }
 #endif

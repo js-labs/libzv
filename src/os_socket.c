@@ -28,6 +28,9 @@
 #include <arpa/inet.h>
 #endif
 
+#if defined(__linux__)
+#include <unistd.h>
+#endif
 
 int zv_socket_close(zv_socket_t sockfd)
 {

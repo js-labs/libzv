@@ -88,8 +88,8 @@ if(UNIX)
 endif()
 
 if("${CMAKE_SYSTEM_NAME}" STREQUAL "Linux")
-    # gettid() on Linux available in unistd.h only with _GNU_SOURCE
-    target_compile_definitions(zv PUBLIC _GNU_SOURCE)
+    # gettid() and IOV_MAX
+    target_compile_definitions(zv PRIVATE _GNU_SOURCE)
 endif()
 
 if(WIN32)
@@ -155,6 +155,10 @@ if(BUILD_TESTS)
             target_compile_definitions(${TARGET} PRIVATE WIN32_LEAN_AND_MEAN)
             target_compile_options(${TARGET} PRIVATE /experimental:c11atomics)
         endif()
+        if("${CMAKE_SYSTEM_NAME}" STREQUAL "Linux")
+            # IOV_MAX
+            target_compile_definitions(${TARGET} PRIVATE _GNU_SOURCE)
+        endif()
         if(DEFINED ZV_CHANNEL_SEND_REF)
             target_compile_definitions(${TARGET} PRIVATE ZV_CHANNEL_SEND_REF)
         endif()
@@ -167,6 +171,10 @@ if(BUILD_TESTS)
         if(WIN32)
             target_compile_definitions(channel_out_queue_tests PRIVATE WIN32_LEAN_AND_MEAN ZV_SUPPRESS_EXPORT)
             target_compile_options(channel_out_queue_tests PRIVATE /experimental:c11atomics)
+        endif()
+        if("${CMAKE_SYSTEM_NAME}" STREQUAL "Linux")
+            # gettid() and IOV_MAX
+            target_compile_definitions(channel_out_queue_tests PRIVATE _GNU_SOURCE)
         endif()
     endif()
 

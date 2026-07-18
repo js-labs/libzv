@@ -32,7 +32,6 @@ static inline void _zv_set_errno(int n) { WSASetLastError(n); }
 #elif defined(__linux__) || defined(__APPLE__)
 
 #include <sys/errno.h>
-#include <unistd.h>
 
 static inline int _zv_get_errno() { return errno; }
 static inline void _zv_set_errno(int n) { errno = n; }

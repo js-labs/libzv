@@ -148,7 +148,7 @@ int main(int argc, const char * argv[])
     for (size_t idx=0; idx<13; idx++)
     {
         printf("%6zu |", block_size);
-        for (size_t iovc_max = IOV_MAX; iovc_max > 128; iovc_max /= 2)
+        for (size_t iovc_max=IOV_MAX; iovc_max>128; iovc_max/=2)
         {
             long elapsed_time_ms = run_test(server_port, total_bytes, block_size, iovc_max);
             printf(" %2ld.%.3ld |", (elapsed_time_ms / 1000), (elapsed_time_ms % 1000));

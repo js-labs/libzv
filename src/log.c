@@ -34,6 +34,7 @@
 #if defined(__linux__)
 #include <stdarg.h>
 #include <sys/time.h>
+#include <unistd.h>
 #elif defined(__APPLE__)
 #include <sys/time.h>
 #endif
