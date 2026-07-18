@@ -4,7 +4,7 @@ project(libzv LANGUAGES C)
 
 option(BUILD_TESTS "Build tests" ON)
 option(ASAN "Enable AddressSanitizer" OFF)
-option(CHANNEL_SEND_REF "Enable channel send ref" ON)
+option(CHANNEL_SEND_REF "Enable channel send ref" OFF)
 
 include_directories(include)
 
