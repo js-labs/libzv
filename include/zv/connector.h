@@ -38,7 +38,10 @@ ZV_EXPORT zv_connector_t * zv_connector_create(
 ZV_EXPORT void zv_connector_destroy(zv_connector_t * connector);
 
 ZV_EXPORT zv_loop_t * zv_connector_get_loop(zv_connector_t * connector);
+
 ZV_EXPORT void * zv_connector_get_extra_data(zv_connector_t * connector);
+ZV_EXPORT void * zv_connector_set_extra_data(zv_connector_t * connector, void * extra_data);
+
 ZV_EXPORT const struct sockaddr * zv_connector_get_addr(zv_connector_t * connector, socklen_t * addrlen);
 
 ZV_EXPORT void zv_connector_start(zv_connector_t * connector);

@@ -23,8 +23,8 @@
 #include <stddef.h>
 
 #if defined(_WIN32)
-struct _WSABUF;
 #if !defined(iovec)
+struct _WSABUF;
 #define iovec _WSABUF
 #endif
 #else
@@ -65,13 +65,21 @@ int zv_channel_out_queue_add_data(
     size_t size
 );
 
+int zv_channel_out_queue_add_ref(
+    struct zv_channel_out_queue_s * out_queue,
+    const void * data,
+    size_t size,
+    void (*after_send)(void*),
+    void * thunk
+);
+
 int zv_channel_out_queue_get_data(
     struct zv_channel_out_queue_s * out_queue,
     struct iovec * iov,
     int iovc_max
 );
 
-size_t zv_channel_out_queue_remove_data(
+size_t zv_channel_out_queue_remove(
     struct zv_channel_out_queue_s * out_queue,
     size_t bytes
 );

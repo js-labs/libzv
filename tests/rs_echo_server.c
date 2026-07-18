@@ -14,7 +14,6 @@
 #include <sys/uio.h>
 #endif
 
-
 static inline struct iovec make_iovec(char * ptr, size_t len)
 {
 #if defined(_WIN32)

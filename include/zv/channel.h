@@ -54,7 +54,18 @@ ZV_EXPORT const struct sockaddr * zv_channel_get_peer_addr(zv_channel_t * channe
 ZV_EXPORT const char * zv_channel_get_peer_addr_str(zv_channel_t * channel);
 
 ZV_EXPORT int zv_channel_send(zv_channel_t * channel, const void * data, size_t size);
-ZV_EXPORT int zv_channel_send_sync(zv_channel_t * channel, const void * data, size_t size);
+
+ZV_EXPORT int zv_channel_send_sync(zv_channel_t* channel, const void* data, size_t size);
+
+#if defined(ZV_CHANNEL_SEND_REF)
+ZV_EXPORT int zv_channel_send_ref(
+    zv_channel_t * channel,
+    const void * data,
+    size_t size,
+    void (*after_send)(void*),
+    void * thunk
+);
+#endif
 
 enum zv_log_level;
 ZV_EXPORT void zv_channel_set_log_level(enum zv_log_level level);

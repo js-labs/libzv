@@ -53,7 +53,7 @@
 #endif
 
 
-static struct zv_log_layer_s _zv_channel_log = { "xv.channel", zv_log_level_warning };
+struct zv_log_layer_s _zv_channel_log = { "xv.channel", zv_log_level_warning };
 
 
 struct zv_channel_s
@@ -391,7 +391,26 @@ static void _zv_channel_write_task(struct zv_thread_pool_task_s * task)
 #endif
     if (bytes_sent > 0)
     {
-        size_t bytes_remaining = zv_channel_out_queue_remove_data(out_queue, bytes_sent);
+    #if defined(CHANNEL_SEND_REF)
+        size_t blocks_remaining = zv_channel_out_queue_remove(out_queue, bytes_sent);
+        if (blocks_remaining == SIZE_MAX)
+        {
+            // queue is empty and closed
+            zv_channel_release(channel);
+        }
+        else if (blocks_remaining > 0)
+        {
+            // queue is not empty,
+            // but let's write remaining data later
+            // allowing other tasks in the thread pool do their job
+            zv_thread_pool_dispatch(channel->thread_pool, &channel->write_handler.task);
+        }
+        else
+        {
+            // do nothing
+        }
+    #else
+        size_t bytes_remaining = zv_channel_out_queue_remove(out_queue, bytes_sent);
         if (bytes_remaining == SIZE_MAX)
         {
             // queue is empty and closed
@@ -408,6 +427,7 @@ static void _zv_channel_write_task(struct zv_thread_pool_task_s * task)
         {
             // do nothing
         }
+    #endif
     }
     else
     {
@@ -741,9 +761,9 @@ void * zv_channel_get_extra_data(zv_channel_t * channel)
 
 const struct sockaddr * zv_channel_get_local_addr(zv_channel_t * channel, socklen_t * addrlen)
 {
-    const size_t channel_size = _zv_round(sizeof(struct zv_channel_s), sizeof(void*));
+    size_t channel_size = _zv_round(sizeof(struct zv_channel_s), sizeof(void*));
     *addrlen = channel->local_addr_len;
-    return (const struct sockaddr*) (((const char*)channel) + channel_size);
+    return (struct sockaddr*) (((char*)channel) + channel_size);
 }
 
 
@@ -755,10 +775,10 @@ const char * zv_channel_get_local_addr_str(zv_channel_t * channel)
 
 const struct sockaddr * zv_channel_get_peer_addr(zv_channel_t * channel, socklen_t * addrlen)
 {
-    const size_t channel_size = _zv_round(sizeof(struct zv_channel_s), sizeof(void*));
-    const size_t local_addr_size = _zv_round(channel->local_addr_len, sizeof(void*));
+    size_t channel_size = _zv_round(sizeof(struct zv_channel_s), sizeof(void*));
+    size_t local_addr_size = _zv_round(channel->local_addr_len, sizeof(void*));
     *addrlen = channel->peer_addr_len;
-    return (const struct sockaddr*) (((const char*)channel) + (channel_size + local_addr_size));
+    return (struct sockaddr*) (((char*)channel) + (channel_size + local_addr_size));
 }
 
 
@@ -807,6 +827,34 @@ int zv_channel_send_sync(zv_channel_t * channel, const void * data, size_t size)
         return rc;
     }
 }
+
+
+#if defined(ZV_CHANNEL_SEND_REF)
+
+int zv_channel_send_ref(
+    zv_channel_t * channel,
+    const void * data,
+    size_t size,
+    void (*after_send)(void*),
+    void * thunk
+) {
+    int rc = zv_channel_out_queue_add_ref(&channel->out_queue, data, size, after_send, thunk);
+    if (rc > 0)
+    {
+        // should start writting socket
+        zv_thread_pool_dispatch(channel->thread_pool, &channel->write_handler.task);
+        return 0;
+    }
+    else
+    {
+        // rc is either
+        // 0: data added, but there is a thread writting socket right now
+        // -1: channel is closed
+        return rc;
+    }
+}
+
+#endif
 
 
 void zv_channel_set_log_level(enum zv_log_level level)
