@@ -366,12 +366,12 @@ static void _zv_channel_write_task(struct zv_thread_pool_task_s * task)
         iov = malloc(sizeof(struct iovec) * iov_max);
         pthread_setspecific(channel->tls_iov, iov);
     }
-    int iovc = zv_channel_out_queue_get_data(out_queue, iov, iov_max);
+    size_t iovc = zv_channel_out_queue_get_data(out_queue, iov, iov_max);
     assert(iovc > 0);
 
 #if defined(_WIN32)
     DWORD bytes_sent;
-    int rc = WSASend(channel->write_handler.sockfd, iov, iovc, &bytes_sent, 0, NULL, NULL);
+    int rc = WSASend(channel->write_handler.sockfd, iov, (DWORD)iovc, &bytes_sent, 0, NULL, NULL);
     if (rc != 0)
         bytes_sent = 0;
 #elif defined(__linux__)

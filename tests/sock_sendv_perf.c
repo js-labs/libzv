@@ -62,15 +62,15 @@ static long run_test(
 
             for (;;)
             {
-                int iovc;
+                size_t iovc;
                 if ((iovc_max * block_size) <= bytes_remaining)
                     iovc = iovc_max;
                 else
-                    iovc = (int) (bytes_remaining / block_size);
+                    iovc = (bytes_remaining / block_size);
 
 #if defined(_WIN32)
                 DWORD dw_bytes_sent;
-                rc = WSASend(sockfd, iov, iovc, &dw_bytes_sent, 0, NULL, NULL);
+                rc = WSASend(sockfd, iov, (DWORD)iovc, &dw_bytes_sent, 0, NULL, NULL);
                 if (rc != 0)
                 {
                     fprintf(stderr, "WSASend() failed: %d\n", WSAGetLastError());

@@ -240,10 +240,10 @@ static inline struct iovec make_iovec(char * ptr, size_t len)
 }
 
 
-int zv_channel_out_queue_get_data(
+size_t zv_channel_out_queue_get_data(
     struct zv_channel_out_queue_s * out_queue,
     struct iovec * iov,
-    int iovc_max
+    size_t iovc_max
 ) {
     const size_t buffer_size = zv_buffer_cache_get_buffer_size(out_queue->buffer_cache);
     size_t state = atomic_load(&out_queue->state);
@@ -271,7 +271,7 @@ int zv_channel_out_queue_get_data(
         bytes_ready -= cc;
         buffer = buffer->next;
 
-        int iovc = 1;
+        size_t iovc = 1;
         while (iovc < iovc_max)
         {
             iovc++;

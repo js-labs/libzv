@@ -73,10 +73,10 @@ int zv_channel_out_queue_add_ref(
     void * thunk
 );
 
-int zv_channel_out_queue_get_data(
+size_t zv_channel_out_queue_get_data(
     struct zv_channel_out_queue_s * out_queue,
     struct iovec * iov,
-    int iovc_max
+    size_t iovc_max
 );
 
 size_t zv_channel_out_queue_remove(
