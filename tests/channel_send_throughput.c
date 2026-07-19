@@ -385,8 +385,6 @@ static void print_results(const char * info, int count, const struct result_s * 
 
 int main(int argc, const char * argv[])
 {
-    in_port_t accept_port;
-    pthread_t accept_thread;
     int rc;
 
 #if defined(_WIN32)
