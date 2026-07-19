@@ -26,9 +26,6 @@
 #include <ws2tcpip.h>
 #else
 #include <arpa/inet.h>
-#endif
-
-#if defined(__linux__)
 #include <unistd.h>
 #endif
 
