@@ -19,10 +19,11 @@ struct timer_s
 static struct timespec * timer_func(void * arg, struct timespec * repeat_time)
 {
     struct timer_s * timer = arg;
-    if (timer->repeat_interval_ms > 0)
+    const long repeat_interval_ms = timer->repeat_interval_ms;
+    if (repeat_interval_ms > 0)
     {
         timer->repeat_interval_ms = 0;
-        timespec_now_adding_ms(repeat_time, timer->repeat_interval_ms);
+        timespec_now_adding_ms(repeat_time, repeat_interval_ms);
         return repeat_time;
     }
     else
