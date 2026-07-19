@@ -13,13 +13,13 @@
 struct timer_s
 {
     sem_t * sem;
-    size_t repeat_interval_ms;
+    long repeat_interval_ms;
 };
 
 static struct timespec * timer_func(void * arg, struct timespec * repeat_time)
 {
     struct timer_s * timer = arg;
-    const size_t repeat_interval_ms = timer->repeat_interval_ms;
+    const long repeat_interval_ms = timer->repeat_interval_ms;
     if (repeat_interval_ms > 0)
     {
         timer->repeat_interval_ms = 0;

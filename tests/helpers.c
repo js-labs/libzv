@@ -363,7 +363,7 @@ long timeval_elapsed_time_us(const struct timeval * start, const struct timeval 
 }
 
 
-void timeval_add_ms(struct timeval * tv, unsigned int ms)
+void timeval_add_ms(struct timeval * tv, long ms)
 {
     const long us_in_sec = (1000 * 1000);
     tv->tv_usec += (ms * 1000);
@@ -375,7 +375,7 @@ void timeval_add_ms(struct timeval * tv, unsigned int ms)
 }
 
 
-void timespec_add_ms(struct timespec * ts, unsigned int ms)
+void timespec_add_ms(struct timespec * ts, long ms)
 {
     const long ns_in_sec = (1000 * 1000 * 1000);
     ts->tv_nsec += (ms * 1000 * 1000);
@@ -387,7 +387,7 @@ void timespec_add_ms(struct timespec * ts, unsigned int ms)
 }
 
 
-void timespec_now_adding_ms(struct timespec * ts, unsigned int ms)
+void timespec_now_adding_ms(struct timespec * ts, long ms)
 {
     struct timeval tv;
     gettimeofday(&tv, NULL);
