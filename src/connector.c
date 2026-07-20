@@ -28,6 +28,7 @@
 #if !defined(_WIN32)
 #include <netinet/tcp.h>
 #include <fcntl.h>
+#include <errno.h>
 #endif
 
 static struct zv_log_layer_s _zv_connector_log = { "xv.connector", zv_log_level_warning };
@@ -60,7 +61,7 @@ static int _zv_err_in_progress(int rc)
 }
 
 
-struct sockaddr * _zv_connector_get_addr(struct zv_connector_s * connector)
+static struct sockaddr * _zv_connector_get_addr(struct zv_connector_s * connector)
 {
     const size_t connector_size = _zv_round(sizeof(struct zv_connector_s), sizeof(void*));
     return (struct sockaddr*) (((char*)connector) + connector_size);
@@ -84,18 +85,20 @@ static void _zv_connector_connect_task(struct zv_thread_pool_task_s * task)
         if (sockerr == 0)
         {
             connector->after_connect(connector, sockfd);
+            free(connector);
             return;
         }
     }
     else
         sockerr = _zv_get_errno();
 
-    connector->after_fail(connector, sockerr);
     zv_socket_close(sockfd);
+    connector->after_fail(connector, sockerr);
+    free(connector);
 }
 
 
-static void _zv_connector_init_task(struct zv_thread_pool_task_s * task)
+static void _zv_connector_task(struct zv_thread_pool_task_s * task)
 {
     struct zv_connector_s * connector = _ZV_CONTAINER_OF(
         _ZV_CONTAINER_OF(task, struct zv_event_handler_s, task),
@@ -107,7 +110,9 @@ static void _zv_connector_init_task(struct zv_thread_pool_task_s * task)
     zv_socket_t sockfd = socket(addr->sa_family, SOCK_STREAM, IPPROTO_TCP);
     if (sockfd == INVALID_SOCKET)
     {
-        connector->after_fail(connector, _zv_get_errno());
+        const int sockerr = _zv_get_errno();
+        connector->after_fail(connector, sockerr);
+        free(connector);
         return;
     }
 
@@ -119,15 +124,22 @@ static void _zv_connector_init_task(struct zv_thread_pool_task_s * task)
 #endif
     if (rc != 0)
     {
-        connector->after_fail(connector, _zv_get_errno());
+        const int sockerr = _zv_get_errno();
         zv_socket_close(sockfd);
+        connector->after_fail(connector, sockerr);
+        free(connector);
         return;
     }
 
     rc = connect(sockfd, addr, connector->addrlen);
-    if (rc)
+    if (rc == 0)
     {
-        const int sockerr = _zv_get_errno();
+        // sometimes it happens
+        connector->after_connect(connector, sockfd);
+    }
+    else
+    {
+        int sockerr = _zv_get_errno();
         if (_zv_err_in_progress(sockerr))
         {
             _zv_event_handler_init(
@@ -139,27 +151,22 @@ static void _zv_connector_init_task(struct zv_thread_pool_task_s * task)
             );
 
             rc = _zv_loop_add_handler(connector->loop, &connector->handler);
-            if (rc != 0)
-            {
-                /* loop is stopped */
-                //connector->thread_pool_task.func = &_zv_connector_err_handler_func;
-                //zv_thread_pool_dispatch(connector->thread_pool, &connector->thread_pool_task);
-            }
+            if (rc == 0)
+                return;
+
+#if defined(_WIN32)
+            sockerr = WSAECONNABORTED;
+#else
+            sockerr = ECONNABORTED;
+#endif
         }
-        else
-        {
-            zv_socket_close(sockfd);
-            connector->after_fail(connector, sockerr);
-        }
+        zv_socket_close(sockfd);
+        connector->after_fail(connector, sockerr);
     }
-    else
-    {
-        // sometimes it happens
-        connector->after_connect(connector, sockfd);
-    }
+    free(connector);
 }
 
-zv_connector_t * zv_connector_create(
+int zv_connector_create(
     zv_loop_t * loop,
     const struct sockaddr * addr,
     socklen_t addrlen,
@@ -169,22 +176,19 @@ zv_connector_t * zv_connector_create(
 ) {
     const size_t connector_size = _zv_round(sizeof(struct zv_connector_s), sizeof(void*));
     struct zv_connector_s * connector = malloc(connector_size + addrlen);
-    if (connector)
-    {
-        connector->loop = loop;
-        connector->addrlen = addrlen;
-        memcpy(((char*)connector) + connector_size, addr, addrlen);
-        connector->after_connect = after_connect;
-        connector->after_fail = after_fail;
-        connector->extra_data = extra_data;
-        return connector;
-    }
-    return NULL;
-}
+    if (connector == NULL)
+        return ENOMEM;
 
-void zv_connector_destroy(zv_connector_t * connector)
-{
-    free(connector);
+    connector->loop = loop;
+    connector->addrlen = addrlen;
+    memcpy(((char*)connector) + connector_size, addr, addrlen);
+    connector->after_connect = after_connect;
+    connector->after_fail = after_fail;
+    connector->extra_data = extra_data;
+
+    zv_thread_pool_task_init(&connector->handler.task, &_zv_connector_task);
+    zv_thread_pool_dispatch(loop->thread_pool, &connector->handler.task);
+    return 0;
 }
 
 zv_loop_t * zv_connector_get_loop(zv_connector_t * connector)
@@ -197,24 +201,10 @@ void * zv_connector_get_extra_data(zv_connector_t * connector)
     return connector->extra_data;
 }
 
-void * zv_connector_set_extra_data(zv_connector_t * connector, void * extra_data)
-{
-    void * ret = connector->extra_data;
-    connector->extra_data = extra_data;
-    return ret;
-}
-
 const struct sockaddr * zv_connector_get_addr(zv_connector_t * connector, socklen_t * addrlen)
 {
     *addrlen = connector->addrlen;
     return _zv_connector_get_addr(connector);
-}
-
-void zv_connector_start(zv_connector_t * connector)
-{
-    zv_thread_pool_task_init(&connector->handler.task, &_zv_connector_init_task);
-    zv_thread_pool_t * thread_pool = connector->loop->thread_pool;
-    zv_thread_pool_dispatch(thread_pool, &connector->handler.task);
 }
 
 void zv_connector_set_log_level(enum zv_log_level level)

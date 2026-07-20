@@ -176,7 +176,6 @@ static void after_connect(zv_connector_t * connector, zv_socket_t sockfd)
 {
     zv_loop_t * loop = zv_connector_get_loop(connector);
     struct sender_args_s * sender_args = zv_connector_get_extra_data(connector);
-    zv_connector_destroy(connector);
 
     zv_buffer_cache_t * buffer_cache = zv_buffer_cache_create(16*1024, 16, 4);
     if (buffer_cache == NULL)
@@ -312,16 +311,6 @@ static int run_benchmark(
     zv_loop_t * loop = zv_loop_create(NULL);
     if (loop != NULL)
     {
-        struct sockaddr_in addr = make_sockaddr_in(INADDR_LOOPBACK, accept_port);
-        zv_connector_t * connector = zv_connector_create(
-            loop,
-            (struct sockaddr*) &addr,
-            sizeof(addr),
-            after_connect,
-            after_connect_fail,
-            NULL
-        );
-
         struct sender_args_s sender_args =
         {
     #if defined(ZV_CHANNEL_SEND_REF)
@@ -331,16 +320,24 @@ static int run_benchmark(
             .num_messages = num_messages,
             .send_time_ms = -1
         };
-        zv_connector_set_extra_data(connector, &sender_args);
 
-        if (connector)
+        struct sockaddr_in addr = make_sockaddr_in(INADDR_LOOPBACK, accept_port);
+        int rc = zv_connector_create(
+            loop,
+            (struct sockaddr*) &addr,
+            sizeof(addr),
+            after_connect,
+            after_connect_fail,
+            &sender_args
+        );
+
+        if (rc == 0)
         {
-            zv_connector_start(connector);
             zv_loop_run(loop);
             result->write_time_ms = sender_args.send_time_ms;
         }
         else
-            fprintf(stderr, "zv_connector_create() failed\n");
+            fprintf(stderr, "zv_connector_create() failed: %d\n", rc);
     }
     else
         fprintf(stderr, "zv_loop_create() failed\n");

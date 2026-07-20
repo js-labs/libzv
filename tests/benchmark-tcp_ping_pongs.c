@@ -128,7 +128,6 @@ static void after_connect(zv_connector_t * connector, zv_socket_t sockfd)
 {
     zv_loop_t * loop = zv_connector_get_loop(connector);
     struct pinger_s * pinger = zv_connector_get_extra_data(connector);
-    zv_connector_destroy(connector);
 
     zv_channel_t * channel = zv_channel_create(
         loop,
@@ -193,7 +192,7 @@ static void run_pingers(in_port_t server_port, int count)
         {
             if (pinger_init(&pingers[idx], count, &connected_pingers, &completed_pingers) == 0)
             {
-                zv_connector_t * connector = zv_connector_create(
+                int rc = zv_connector_create(
                     client_loop,
                     (const struct sockaddr*) &addr,
                     sizeof(addr),
@@ -202,11 +201,9 @@ static void run_pingers(in_port_t server_port, int count)
                     &pingers[idx]/* extra data */
                 );
 
-                if (connector != NULL)
-                    zv_connector_start(connector);
-                else
+                if (rc != 0)
                 {
-                    fprintf(stderr, "zv_connector_create() failed\n");
+                    fprintf(stderr, "zv_connector_create() failed: %d\n", rc);
                     abort();
                 }
             }

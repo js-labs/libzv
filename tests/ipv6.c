@@ -77,7 +77,6 @@ static void after_connect(zv_connector_t * connector, zv_socket_t sockfd)
 {
     zv_loop_t * loop = zv_connector_get_loop(connector);
     struct test_s * test = zv_connector_get_extra_data(connector);
-    zv_connector_destroy(connector);
 
     zv_channel_t * channel = zv_channel_create(
         loop,
@@ -209,7 +208,7 @@ int ipv6()
             addr.sin6_port = htons(zv_acceptor_get_port(acceptor));
             addr.sin6_addr = in6addr_loopback;
 
-            zv_connector_t * connector = zv_connector_create(
+            rc = zv_connector_create(
                 loop,
                 (const struct sockaddr*) &addr,
                 sizeof(addr),
@@ -218,17 +217,17 @@ int ipv6()
                 &test
             );
 
-            if (connector)
+            if (rc == 0)
             {
+                // The loop is not running yet, so the connection
+                // will not be accepted before the acceptor is started.
                 zv_acceptor_start(acceptor);
-                zv_connector_start(connector);
                 zv_loop_run(loop);
             }
             else
             {
-                fprintf(stderr, "zv_connector_create() failed\n");
+                fprintf(stderr, "zv_connector_create() failed: %d\n", rc);
                 zv_acceptor_destroy(acceptor);
-                rc = -1;
             }
         }
         else

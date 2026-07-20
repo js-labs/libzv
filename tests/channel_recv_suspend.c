@@ -138,15 +138,15 @@ static zv_acceptor_t * start_acceptor(
                 return acceptor;
             }
  
-            printf("zv_acceptor() failed\n");
+            fprintf(stderr, "zv_acceptor() failed\n");
             zv_buffer_cache_release(buffer_cache);
         }
         else
-            printf("zv_buffer_cache_create() failed\n");
+            fprintf(stderr, "zv_buffer_cache_create() failed\n");
         free(extra_data);
     }
     else
-        printf("malloc() failed\n");
+        fprintf(stderr, "malloc() failed\n");
     return NULL;
 }
 

@@ -71,7 +71,7 @@ int acceptor1()
     );
 
     int rc = 0;
-    if (acceptor)
+    if (acceptor != NULL)
     {
         zv_acceptor_start(acceptor);
         in_port_t port = zv_acceptor_get_port(acceptor);
