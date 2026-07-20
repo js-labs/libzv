@@ -182,7 +182,7 @@ zv_acceptor_t * start_acceptor_with_buffer_cache(
             buffer_cache
         );
 
-        if (acceptor)
+        if (acceptor != NULL)
         {
             zv_acceptor_start(acceptor);
             return acceptor;
@@ -207,14 +207,14 @@ zv_loop_t * create_loop_and_connector(
     void (*after_connect)(zv_connector_t*, zv_socket_t)
 ) {
     zv_loop_t * loop = zv_loop_create(NULL);
-    if (!loop)
+    if (loop == NULL)
     {
-        printf("zv_loop_create() failed\n");
+        fprintf(stderr, "zv_loop_create() failed\n");
         return NULL;
     }
 
     struct sockaddr_in addr = make_sockaddr_in(INADDR_LOOPBACK, port);
-    zv_connector_t * connector = zv_connector_create(
+    int rc = zv_connector_create(
         loop,
         (struct sockaddr*) &addr,
         sizeof(addr),
@@ -223,13 +223,10 @@ zv_loop_t * create_loop_and_connector(
         NULL
     );
 
-    if (connector)
-    {
-        zv_connector_start(connector);
+    if (rc == 0)
         return loop;
-    }
-    else
-        printf("zv_connector_create() failed\n");
+
+    fprintf(stderr, "zv_connector_create() failed: %d\n", rc);
 
     zv_loop_destroy(loop);
     return NULL;

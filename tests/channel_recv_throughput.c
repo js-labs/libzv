@@ -274,9 +274,9 @@ int main(int argc, const char * argv[])
 
     pthread_t loop_thread;
     zv_loop_t * loop = start_loop(&loop_thread, NULL);
-    if (!loop)
+    if (loop == NULL)
     {
-        printf("start_loop1() failed\n");
+        fprintf(stderr, "start_loop1() failed\n");
         return -1;
     }
 
@@ -292,7 +292,7 @@ int main(int argc, const char * argv[])
             test
         );
 
-        if (acceptor)
+        if (acceptor != NULL)
         {
             in_port_t port = zv_acceptor_get_port(acceptor);
             printf("server started at port %hu\n", port);
@@ -318,7 +318,7 @@ int main(int argc, const char * argv[])
         }
         else
         {
-            printf("zv_acceptor_create() failed\n");
+            fprintf(stderr, "zv_acceptor_create() failed\n");
             test_destroy(test);
             zv_loop_stop(loop);
             rc = -1;
@@ -326,7 +326,7 @@ int main(int argc, const char * argv[])
     }
     else
     {
-        printf("zv_buffer_cache_create() failed\n");
+        fprintf(stderr, "zv_buffer_cache_create() failed\n");
         zv_loop_stop(loop);
         rc = -1;
     }

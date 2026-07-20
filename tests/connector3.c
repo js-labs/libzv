@@ -43,7 +43,6 @@ static void after_fail(zv_connector_t * connector, int sockerr)
 
     zv_loop_t * loop = zv_connector_get_loop(connector);
     zv_loop_stop(loop);
-    zv_connector_destroy(connector);
 }
 
 int connector3()
@@ -52,7 +51,7 @@ int connector3()
 
     // hope no one responses at port 666 on 8.8.8.8
     const struct sockaddr_in addr = make_sockaddr_in(0x08080808, 666);
-    zv_connector_t * connector = zv_connector_create(
+    int rc = zv_connector_create(
         loop,
         (const struct sockaddr*) &addr,
         sizeof(addr),
@@ -61,9 +60,12 @@ int connector3()
         NULL /* extra data */
     );
 
-    zv_connector_start(connector);
-    zv_loop_run(loop);
+    if (rc == 0)
+        zv_loop_run(loop);
+    else
+        fprintf(stderr, "zv_connector_create() failed: %d\n", rc);
+
     zv_loop_destroy(loop);
 
-    return 0;
+    return rc;
 }

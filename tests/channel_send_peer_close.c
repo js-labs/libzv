@@ -22,10 +22,11 @@ static void after_accept(zv_socket_t sockfd, void * thunk)
     socklen_t peer_addrlen = sizeof(peer_addr);
     struct sockaddr_in local_addr;
     socklen_t local_addrlen = sizeof(local_addr);
-    if (getsockname(sockfd, (struct sockaddr*) &local_addr, &local_addrlen) == 0)
+    if (getsockname(sockfd, (struct sockaddr*) &local_addr, &local_addrlen) == 0 &&
+        getpeername(sockfd, (struct sockaddr*) &peer_addr, &peer_addrlen) == 0)
     {
-        char peer_addr_str[INET_ADDRSTRLEN];
-        char local_addr_str[INET_ADDRSTRLEN];
+        char peer_addr_str[INET_ADDRSTRLEN + 7];
+        char local_addr_str[INET_ADDRSTRLEN + 7];
         zv_inet_ntop((struct sockaddr*) &peer_addr, peer_addrlen, peer_addr_str, sizeof(peer_addr_str));
         zv_inet_ntop((struct sockaddr*) &local_addr, local_addrlen, local_addr_str, sizeof(local_addr_str));
         printf("connection accepted: %s -> %s\n", local_addr_str, peer_addr_str);
@@ -57,53 +58,48 @@ static void channel_close_handler(zv_channel_t * channel)
 static void after_connect(zv_connector_t * connector, zv_socket_t sockfd)
 {
     zv_loop_t * loop = zv_connector_get_loop(connector);
-    zv_connector_destroy(connector);
 
     zv_buffer_cache_t * buffer_cache = zv_buffer_cache_create(1024 * 8, 16, 4);
-    if (buffer_cache)
-    {
-        zv_channel_t * channel = zv_channel_create(
-            loop,
-            buffer_cache,
-            sockfd,
-            &channel_input_handler,
-            &channel_close_handler,
-            NULL /*extra data*/
-        );
-        zv_buffer_cache_release(buffer_cache);
-
-        if (channel)
-        {
-            printf(
-                "connection established: %s -> %s\n",
-                zv_channel_get_local_addr_str(channel),
-                zv_channel_get_peer_addr_str(channel)
-            );
-
-            zv_channel_start(channel);
-
-            uint16_t data[512];
-            for (uint16_t idx=0; idx<512; idx++)
-                data[idx] = idx;
-
-            size_t bytes_sent = 0;
-            for (;;)
-            {
-                int rc = zv_channel_send(channel, data, sizeof(data));
-                if (rc)
-                {
-                    printf("zv_channel_send() failed, %zu bytes sent (expected)\n", bytes_sent);
-                    break;
-                }
-                bytes_sent += sizeof(data);
-            }
-
-            zv_channel_release(channel);
-        }
-    }
-    else
-    {
+    if (buffer_cache == NULL)
         abort();
+
+    zv_channel_t * channel = zv_channel_create(
+        loop,
+        buffer_cache,
+        sockfd,
+        &channel_input_handler,
+        &channel_close_handler,
+        NULL /*extra data*/
+    );
+    zv_buffer_cache_release(buffer_cache);
+
+    if (channel != NULL)
+    {
+        printf(
+            "connection established: %s -> %s\n",
+            zv_channel_get_local_addr_str(channel),
+            zv_channel_get_peer_addr_str(channel)
+        );
+
+        zv_channel_start(channel);
+
+        uint16_t data[512];
+        for (uint16_t idx=0; idx<512; idx++)
+            data[idx] = idx;
+
+        size_t bytes_sent = 0;
+        for (;;)
+        {
+            int rc = zv_channel_send(channel, data, sizeof(data));
+            if (rc)
+            {
+                printf("zv_channel_send() failed, %zu bytes sent (expected)\n", bytes_sent);
+                break;
+            }
+            bytes_sent += sizeof(data);
+        }
+
+        zv_channel_release(channel);
     }
 }
 

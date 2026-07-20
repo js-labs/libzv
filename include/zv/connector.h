@@ -26,7 +26,15 @@
 typedef struct zv_loop_s zv_loop_t;
 typedef struct zv_connector_s zv_connector_t;
 
-ZV_EXPORT zv_connector_t * zv_connector_create(
+/*
+ * Creates and starts a connector.
+ * Exactly one of the callbacks is invoked once the connection attempt
+ * completes, and the connector destroys itself as soon as that callback
+ * returns. The zv_connector_t pointer given to a callback is therefore
+ * valid for the duration of the call only, and must not be stored.
+ * Returns 0 on success, otherwise an error code.
+ */
+ZV_EXPORT int zv_connector_create(
     zv_loop_t * loop,
     const struct sockaddr * addr,
     socklen_t addrlen,
@@ -35,16 +43,9 @@ ZV_EXPORT zv_connector_t * zv_connector_create(
     void * extra_data
 );
 
-ZV_EXPORT void zv_connector_destroy(zv_connector_t * connector);
-
 ZV_EXPORT zv_loop_t * zv_connector_get_loop(zv_connector_t * connector);
-
 ZV_EXPORT void * zv_connector_get_extra_data(zv_connector_t * connector);
-ZV_EXPORT void * zv_connector_set_extra_data(zv_connector_t * connector, void * extra_data);
-
 ZV_EXPORT const struct sockaddr * zv_connector_get_addr(zv_connector_t * connector, socklen_t * addrlen);
-
-ZV_EXPORT void zv_connector_start(zv_connector_t * connector);
 
 enum zv_log_level;
 ZV_EXPORT void zv_connector_set_log_level(enum zv_log_level level);

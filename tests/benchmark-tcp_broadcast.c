@@ -366,7 +366,6 @@ static void after_connect(zv_connector_t * connector, zv_socket_t sockfd)
 {
     zv_loop_t * loop = zv_connector_get_loop(connector);
     struct client_s * client = zv_connector_get_extra_data(connector);
-    zv_connector_destroy(connector);
 
     zv_channel_t * channel = zv_channel_create(
         loop,
@@ -431,7 +430,7 @@ static void run_clients(
             if (rc != 0)
                 break;
 
-            zv_connector_t * connector = zv_connector_create(
+            rc = zv_connector_create(
                 client_loop,
                 (const struct sockaddr*) &addr,
                 sizeof(addr),
@@ -440,10 +439,8 @@ static void run_clients(
                 &clients[idx]/* extra data */
             );
 
-            if (connector != NULL)
-                zv_connector_start(connector);
-            else
-                printf("zv_connector_create() failed\n");
+            if (rc != 0)
+                printf("zv_connector_create() failed: %d\n", rc);
         }
 
         if (idx == client_count)

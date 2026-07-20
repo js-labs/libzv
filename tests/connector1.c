@@ -50,8 +50,6 @@ static void after_connect(zv_connector_t * connector, zv_socket_t sockfd)
 
     zv_loop_t * loop = zv_connector_get_loop(connector);
     zv_loop_stop(loop);
-
-    zv_connector_destroy(connector);
 }
 
 static void after_fail(zv_connector_t * connector, int sockerr)
@@ -83,7 +81,7 @@ int connector1()
     if (loop)
     {
         struct sockaddr_in addr = make_sockaddr_in(INADDR_LOOPBACK, accept_port);
-        zv_connector_t * connector = zv_connector_create(
+        rc = zv_connector_create(
             loop,
             (const struct sockaddr*) &addr,
             sizeof(addr),
@@ -92,8 +90,11 @@ int connector1()
             NULL /* extra data */
         );
 
-        zv_connector_start(connector);
-        zv_loop_run(loop);
+        if (rc == 0)
+            zv_loop_run(loop);
+        else
+            fprintf(stderr, "zv_connector_create() failed: %d\n", rc);
+
         zv_loop_destroy(loop);
     }
     else
