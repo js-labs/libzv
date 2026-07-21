@@ -1,4 +1,23 @@
-#include "zv/buffer.h"
+/*
+ * Copyright (C) 2022 Sergey Zubarev, info@js-labs.org
+ *
+ * This file is a part of tests for ZV framework.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+ #include "zv/buffer.h"
 #include "zv/channel.h"
 #include "zv/os_time.h"
 #include "helpers.h"
@@ -8,6 +27,8 @@
 
 #if defined(_WIN32)
 #include <ws2ipdef.h>
+#else
+#include <errno.h>
 #endif
 
 static void server_channel_input_handler(zv_channel_t * channel, const void * data, size_t size)
