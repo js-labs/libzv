@@ -18,23 +18,21 @@ static void server_channel_input_handler(zv_channel_t * channel, const void * da
 
 static void after_accept(zv_socket_t sockfd, void * thunk)
 {
-    struct sockaddr_in peer_addr;
-    socklen_t peer_addrlen = sizeof(peer_addr);
-    struct sockaddr_in local_addr;
-    socklen_t local_addrlen = sizeof(local_addr);
-    if (getsockname(sockfd, (struct sockaddr*) &local_addr, &local_addrlen) == 0 &&
-        getpeername(sockfd, (struct sockaddr*) &peer_addr, &peer_addrlen) == 0)
-    {
-        char peer_addr_str[INET_ADDRSTRLEN + 7];
-        char local_addr_str[INET_ADDRSTRLEN + 7];
-        zv_inet_ntop((struct sockaddr*) &peer_addr, peer_addrlen, peer_addr_str, sizeof(peer_addr_str));
-        zv_inet_ntop((struct sockaddr*) &local_addr, local_addrlen, local_addr_str, sizeof(local_addr_str));
-        printf("connection accepted: %s -> %s\n", local_addr_str, peer_addr_str);
+    char local_addr[INET_ADDRSTRLEN + 6];
+    char peer_addr[INET_ADDRSTRLEN + 6];
+    int rc = get_sock_names(
+        sockfd,
+        local_addr, sizeof(local_addr),
+        peer_addr, sizeof(peer_addr)
+    );
+    if (rc == 0)
+        printf("connection accepted: %s -> %s\n", local_addr, peer_addr);
+    else
+        printf("get_sock_names(%" PRIsocket ") failed: %d\n", sockfd, errno);
 
-        uint32_t msg;
-        recv(sockfd, (char*) &msg, sizeof(msg), 0);
-        usleep(500);
-    }
+    uint32_t msg;
+    recv(sockfd, (char*) &msg, sizeof(msg), 0);
+    usleep(500);
     zv_socket_close(sockfd);
 }
 

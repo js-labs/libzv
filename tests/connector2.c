@@ -37,7 +37,7 @@ static void after_fail(zv_connector_t * connector, int sockerr)
     socklen_t addrlen;
     const struct sockaddr * addr = zv_connector_get_addr(connector, &addrlen);
 
-    char buffer[INET_ADDRSTRLEN];
+    char buffer[INET_ADDRSTRLEN + 6];
     zv_inet_ntop(addr, addrlen, buffer, sizeof(buffer));
     printf("failed to connect to %s (expected)\n", buffer);
 

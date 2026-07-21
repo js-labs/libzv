@@ -69,8 +69,8 @@ int wsa_init()
 
 int get_sock_names(
     zv_socket_t sockfd,
-    char * local_addr_str, int local_addr_str_len,
-    char * peer_addr_str, int peer_addr_str_len
+    char * local_addr_dst, int local_addr_dst_len,
+    char * peer_addr_dst, int peer_addr_dst_len
 ) {
     struct sockaddr_storage addr;
     socklen_t addrlen = sizeof(addr);
@@ -84,8 +84,8 @@ int get_sock_names(
     ptr = zv_inet_ntop(
         (const struct sockaddr*) &addr,
         addrlen,
-        local_addr_str,
-        local_addr_str_len
+        local_addr_dst,
+        local_addr_dst_len
     );
     if (!ptr)
         return -1;
@@ -98,8 +98,8 @@ int get_sock_names(
     ptr = zv_inet_ntop(
         (const struct sockaddr*) &addr,
         addrlen,
-        peer_addr_str,
-        peer_addr_str_len
+        peer_addr_dst,
+        peer_addr_dst_len
     );
     if (!ptr)
         return -1;

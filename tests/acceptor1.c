@@ -36,15 +36,15 @@ static void after_acceptor_stop(zv_acceptor_t * acceptor, void * arg)
 
 static void accept_handler(zv_acceptor_t * acceptor, zv_socket_t sockfd)
 {
-    char local_addr_str[INET_ADDRSTRLEN];
-    char peer_addr_str[INET_ADDRSTRLEN];
+    char local_addr[INET_ADDRSTRLEN + 6];
+    char peer_addr[INET_ADDRSTRLEN + 6];
     int rc = get_sock_names(
         sockfd,
-        local_addr_str, sizeof(local_addr_str),
-        peer_addr_str, sizeof(peer_addr_str)
+        local_addr, sizeof(local_addr),
+        peer_addr, sizeof(peer_addr)
     );
     if (rc == 0)
-        printf("connection accepted: %s -> %s\n", local_addr_str, peer_addr_str);
+        printf("connection accepted: %s -> %s\n", local_addr, peer_addr);
     else
         printf("get_sock_names(%" PRIsocket ") failed: %d\n", sockfd, errno);
 

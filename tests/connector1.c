@@ -31,16 +31,16 @@
 
 static void after_connect(zv_connector_t * connector, zv_socket_t sockfd)
 {
-    char local_addr_str[INET_ADDRSTRLEN];
-    char peer_addr_str[INET_ADDRSTRLEN];
+    char local_addr[INET_ADDRSTRLEN + 6];
+    char peer_addr[INET_ADDRSTRLEN + 6];
     int rc = get_sock_names(
         sockfd,
-        local_addr_str, sizeof(local_addr_str),
-        peer_addr_str, sizeof(peer_addr_str)
+        local_addr, sizeof(local_addr),
+        peer_addr, sizeof(peer_addr)
     );
 
     if (rc == 0)
-        printf("connection established: %s -> %s\n", local_addr_str, peer_addr_str);
+        printf("connection established: %s -> %s\n", local_addr, peer_addr);
     else
         fprintf(stderr, "get_sock_names(%" PRIsocket ") failed: %d\n", sockfd, errno);
 
