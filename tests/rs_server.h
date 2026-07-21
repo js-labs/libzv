@@ -8,14 +8,14 @@
 typedef struct rs_server_s rs_server_t;
 
 #if !defined(INET_ADDRSTRLEN)
-#define INET_ADDRSTRLEN 22
+#define INET_ADDRSTRLEN 16
 #endif
 
 struct ss_client_s
 {
     zv_socket_t sockfd;
-    char local_addr_str[INET_ADDRSTRLEN];
-    char peer_addr_str[INET_ADDRSTRLEN];
+    char local_addr_str[INET_ADDRSTRLEN + 6];
+    char peer_addr_str[INET_ADDRSTRLEN + 6];
     char wait_wr;
     void * extra_data;
 };

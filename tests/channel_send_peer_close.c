@@ -1,4 +1,23 @@
-#include "zv/buffer.h"
+/*
+ * Copyright (C) 2022 Sergey Zubarev, info@js-labs.org
+ *
+ * This file is a part of tests for ZV framework.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+ #include "zv/buffer.h"
 #include "zv/channel.h"
 #include "zv/os_time.h"
 #include "helpers.h"
@@ -8,6 +27,8 @@
 
 #if defined(_WIN32)
 #include <ws2ipdef.h>
+#else
+#include <errno.h>
 #endif
 
 static void server_channel_input_handler(zv_channel_t * channel, const void * data, size_t size)
@@ -18,23 +39,21 @@ static void server_channel_input_handler(zv_channel_t * channel, const void * da
 
 static void after_accept(zv_socket_t sockfd, void * thunk)
 {
-    struct sockaddr_in peer_addr;
-    socklen_t peer_addrlen = sizeof(peer_addr);
-    struct sockaddr_in local_addr;
-    socklen_t local_addrlen = sizeof(local_addr);
-    if (getsockname(sockfd, (struct sockaddr*) &local_addr, &local_addrlen) == 0 &&
-        getpeername(sockfd, (struct sockaddr*) &peer_addr, &peer_addrlen) == 0)
-    {
-        char peer_addr_str[INET_ADDRSTRLEN + 7];
-        char local_addr_str[INET_ADDRSTRLEN + 7];
-        zv_inet_ntop((struct sockaddr*) &peer_addr, peer_addrlen, peer_addr_str, sizeof(peer_addr_str));
-        zv_inet_ntop((struct sockaddr*) &local_addr, local_addrlen, local_addr_str, sizeof(local_addr_str));
-        printf("connection accepted: %s -> %s\n", local_addr_str, peer_addr_str);
+    char local_addr[INET_ADDRSTRLEN + 6];
+    char peer_addr[INET_ADDRSTRLEN + 6];
+    int rc = get_sock_names(
+        sockfd,
+        local_addr, sizeof(local_addr),
+        peer_addr, sizeof(peer_addr)
+    );
+    if (rc == 0)
+        printf("connection accepted: %s -> %s\n", local_addr, peer_addr);
+    else
+        printf("get_sock_names(%" PRIsocket ") failed: %d\n", sockfd, errno);
 
-        uint32_t msg;
-        recv(sockfd, (char*) &msg, sizeof(msg), 0);
-        usleep(500);
-    }
+    uint32_t msg;
+    recv(sockfd, (char*) &msg, sizeof(msg), 0);
+    usleep(500);
     zv_socket_close(sockfd);
 }
 
