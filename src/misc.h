@@ -39,7 +39,7 @@ static inline void _zv_set_errno(int n) { errno = n; }
 #endif
 
 #define _ZV_CONTAINER_OF(ptr, type, member) \
-  ((type*) ((char*) (ptr) - offsetof(type, member)))
+    ((type*) ((char*) (ptr) - offsetof(type, member)))
 
 static inline size_t _zv_round(size_t v, size_t m)
 {

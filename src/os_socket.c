@@ -39,7 +39,7 @@ int zv_socket_close(zv_socket_t sockfd)
 }
 
 
-const char * zv_inet_ntop(
+const char * zv_sockaddr_ntop(
     const struct sockaddr * addr,
     socklen_t addrlen,
     char * buffer,

@@ -81,7 +81,7 @@ int get_sock_names(
     if (rc != 0)
         return rc;
 
-    ptr = zv_inet_ntop(
+    ptr = zv_sockaddr_ntop(
         (const struct sockaddr*) &addr,
         addrlen,
         local_addr_dst,
@@ -95,7 +95,7 @@ int get_sock_names(
     if (rc != 0)
         return rc;
 
-    ptr = zv_inet_ntop(
+    ptr = zv_sockaddr_ntop(
         (const struct sockaddr*) &addr,
         addrlen,
         peer_addr_dst,

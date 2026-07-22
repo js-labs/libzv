@@ -544,18 +544,17 @@ zv_channel_t * zv_channel_create(
     if (channel == NULL)
         return NULL;
 
-    // hope INET6 address string is always longer than INET4
-    char buffer[INET6_ADDRSTRLEN];
+    char buffer[INET6_ADDRSTRLEN + 6];
 
     channel->loop = loop;
     channel->thread_pool = loop->thread_pool;
 
     channel->local_addr_len = local_addr_len;
-    zv_inet_ntop(local_addr, local_addr_len, buffer, sizeof(buffer));
+    zv_sockaddr_ntop(local_addr, local_addr_len, buffer, sizeof(buffer));
     channel->local_addr_str = strdup(buffer);
 
     channel->peer_addr_len = peer_addr_len;
-    zv_inet_ntop(peer_addr, peer_addr_len, buffer, sizeof(buffer));
+    zv_sockaddr_ntop(peer_addr, peer_addr_len, buffer, sizeof(buffer));
     channel->peer_addr_str = strdup(buffer);
 
     channel->retain_count = 1;
