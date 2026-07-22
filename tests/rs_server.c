@@ -132,14 +132,14 @@ static void * _rs_server_thread_func(void * arg)
                 {
                     struct ss_client_s * client = zv_array_append(clients);
                     client->sockfd = sockfd;
-                    zv_inet_ntop(
-                        (const struct sockaddr*)&local_addr,
+                    zv_sockaddr_ntop(
+                        (const struct sockaddr*) &local_addr,
                         sizeof(local_addr),
                         client->local_addr_str,
                         sizeof(client->local_addr_str)
                     );
-                    zv_inet_ntop(
-                        (const struct sockaddr*)&peer_addr,
+                    zv_sockaddr_ntop(
+                        (const struct sockaddr*) &peer_addr,
                         sizeof(peer_addr),
                         client->peer_addr_str,
                         sizeof(client->peer_addr_str)

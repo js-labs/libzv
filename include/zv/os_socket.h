@@ -55,7 +55,7 @@ typedef int zv_socket_t;
 
 ZV_EXPORT int zv_socket_close(zv_socket_t sockfd);
 
-ZV_EXPORT const char * zv_inet_ntop(
+ZV_EXPORT const char * zv_sockaddr_ntop(
     const struct sockaddr * addr,
     socklen_t addrlen,
     char * buffer,
