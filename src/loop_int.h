@@ -55,18 +55,25 @@ const char * zv_event_opcode_get_name(zv_event_opcode_t event_opcode);
 
 #if defined(__x86_64__) || defined(_M_X64) || defined(__i386__) || defined(_M_IX86)
 
+#if defined(_MSC_VER)
+
 #define _ZV_HAS_RDTSC
 
 static inline uint64_t _zv_rdtsc(void)
 {
-#if defined(_MSC_VER)
     return __rdtsc();
-#else
-    uint32_t lo, hi;
-    __asm__ volatile ("rdtsc" : "=a"(lo), "=d"(hi));
-    return ((uint64_t)hi << 32) | lo;
-#endif
 }
+
+#elif defined(__GNUC__) || defined(__clang__)
+
+#define _ZV_HAS_RDTSC
+
+static inline uint64_t _zv_rdtsc(void)
+{
+    return __builtin_ia32_rdtsc();
+}
+
+#endif
 
 #elif defined(__APPLE__)
 
