@@ -23,7 +23,8 @@ static struct timespec * timer_func(void * arg, struct timespec * repeat_time)
     if (repeat_interval_ms > 0)
     {
         timer->repeat_interval_ms = 0;
-        timespec_now_adding_ms(repeat_time, repeat_interval_ms);
+        clock_gettime(CLOCK_REALTIME, repeat_time);
+        zv_timespec_add_ms(repeat_time, repeat_interval_ms);
         return repeat_time;
     }
     else
@@ -61,7 +62,7 @@ static int test2_func(zv_timer_pool_t * timer_pool)
 
         for (int idx=0; idx<3; idx++)
         {
-            timespec_add_ms(&ts, 200);
+            zv_timespec_add_ms(&ts, 200);
             create_timers(timer_pool, &sem, idx, &ts);
         }
 

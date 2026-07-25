@@ -51,7 +51,4 @@ int run_timer_pool_test(int (*test_func)(zv_timer_pool_t*));
 long timeval_elapsed_time_us(const struct timeval * start, const struct timeval * end);
 void timeval_add_ms(struct timeval * tv, long ms);
 
-void timespec_add_ms(struct timespec * ts, long ms);
-void timespec_now_adding_ms(struct timespec * ts, long ms);
-
 #endif /* !defined(ZV_TESTS_HELPERS_H) */

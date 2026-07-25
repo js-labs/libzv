@@ -43,20 +43,18 @@ static int test3_func(zv_timer_pool_t * timer_pool)
     int rc = sem_init(&sem, 0, 0);
     if (rc == 0)
     {
-        const long ns_in_sec = (1000 * 1000 * 1000);
-        struct timeval tv;
-        gettimeofday(&tv, NULL);
-        struct timespec ts = { tv.tv_sec, tv.tv_usec * 1000 };
+        struct timespec ts;
+        clock_gettime(CLOCK_REALTIME, &ts);
 
         int timers[2] = { 1, 2 };
-        timespec_add_ms(&ts, 200);
+        zv_timespec_add_ms(&ts, 200);
         zv_timer_pool_at(timer_pool, &ts, &timers[0], &timer_func_should_not_be_called);
 
         create_timer(timer_pool, &sem, &ts);
 
         zv_timer_pool_at(timer_pool, &ts, &timers[1], &timer_func_should_not_be_called);
 
-        timespec_add_ms(&ts, 200);
+        zv_timespec_add_ms(&ts, 200);
         create_timer(timer_pool, &sem, &ts);
 
         int cancel_rc;

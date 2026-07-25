@@ -20,7 +20,8 @@ static struct timespec * timer_func(void * arg, struct timespec * repeat_time)
         timer->ready_to_cancel = 1;
         sem_post(&timer->sem);
     }
-    timespec_now_adding_ms(repeat_time, 1);
+    clock_gettime(CLOCK_REALTIME, repeat_time);
+    zv_timespec_add_ms(repeat_time, 1);
     return repeat_time;
 }
 
@@ -33,7 +34,8 @@ static int test4_func(zv_timer_pool_t * timer_pool)
         timer.ready_to_cancel = 0;
 
         struct timespec fire_time;
-        timespec_now_adding_ms(&fire_time, 1);
+        clock_gettime(CLOCK_REALTIME, &fire_time);
+        zv_timespec_add_ms(&fire_time, 1);
         zv_timer_pool_at(timer_pool, &fire_time, &timer, &timer_func);
 
         sem_wait(&timer.sem);

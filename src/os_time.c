@@ -52,11 +52,30 @@ int clock_gettime(clockid_t clockid, struct timespec * ts)
 
 #endif /* _WIN32 */
 
-long zv_elapsed_time_us(const struct timespec * start, const struct timespec * end)
-{
+long zv_elapsed_time_us(
+    const struct timespec * start,
+    const struct timespec * end
+) {
     // (end->tv_sec * C + end->tv_nsec) - (start->tv_sec * C + start->tv_nsec)
     long long vv = (end->tv_sec - start->tv_sec);
     vv *= (1000 * 1000);
     vv += (end->tv_nsec - start->tv_nsec) / 1000;
     return (long) vv;
+}
+
+void zv_timespec_add_ms(struct timespec * ts, long ms)
+{
+    const long ns_in_sec = (1000L * 1000L * 1000L);
+    ts->tv_sec += (ms / 1000);
+    ts->tv_nsec += ((ms % 1000) * 1000000);
+    if (ts->tv_nsec >= ns_in_sec)
+    {
+        ts->tv_sec += 1;
+        ts->tv_nsec -= ns_in_sec;
+    }
+    else if (ts->tv_nsec < 0)
+    {
+        ts->tv_sec -= 1;
+        ts->tv_nsec += ns_in_sec;
+    }
 }
