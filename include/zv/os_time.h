@@ -30,7 +30,8 @@
 ZV_EXPORT int usleep(unsigned int usec);
 ZV_EXPORT int gettimeofday(struct timeval * tv, struct timezone * tz);
 
-#define CLOCK_MONOTONIC 1
+#define CLOCK_REALTIME  1
+#define CLOCK_MONOTONIC 2
 typedef int clockid_t;
 
 ZV_EXPORT int clock_gettime(clockid_t clockid, struct timespec *ts);
@@ -46,6 +47,11 @@ ZV_EXPORT int clock_gettime(clockid_t clockid, struct timespec *ts);
 #error Not supported
 #endif
 
-ZV_EXPORT long zv_elapsed_time_us(const struct timespec * start, const struct timespec * end);
+ZV_EXPORT long zv_elapsed_time_us(
+    const struct timespec * start,
+    const struct timespec * end
+);
+
+ZV_EXPORT void zv_timespec_add_ms(struct timespec * ts, long ms);
 
 #endif /* !defined(ZV_OS_TIME_H) */

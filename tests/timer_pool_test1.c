@@ -55,23 +55,22 @@ static struct timespec * timer_func(void * arg, struct timespec * repeat_time)
     if (++timer->count == 5)
         sem_post(&timer->sem);
 
-    timespec_add_ms(&ts, REPEAT_INTERVAL_MS);
+    zv_timespec_add_ms(&ts, REPEAT_INTERVAL_MS);
     *repeat_time = ts;
     return repeat_time;
 }
 
 static int test1_func(zv_timer_pool_t * timer_pool)
 {
-    struct timeval tv;
-    gettimeofday(&tv, NULL);
-    struct timespec now = { tv.tv_sec, tv.tv_usec * 1000 };
+    struct timespec now;
+    clock_gettime(CLOCK_REALTIME, &now);
 
     struct timer_s timer;
     int rc = timer_init(&timer, &now);
     if (rc == 0)
     {
         struct timespec fire_time = now;
-        timespec_add_ms(&fire_time, REPEAT_INTERVAL_MS);
+        zv_timespec_add_ms(&fire_time, REPEAT_INTERVAL_MS);
         rc = zv_timer_pool_at(timer_pool, &fire_time, &timer, &timer_func);
         if (rc == 0)
         {

@@ -370,25 +370,3 @@ void timeval_add_ms(struct timeval * tv, long ms)
         tv->tv_usec %= us_in_sec;
     }
 }
-
-
-void timespec_add_ms(struct timespec * ts, long ms)
-{
-    const long ns_in_sec = (1000 * 1000 * 1000);
-    ts->tv_nsec += (ms * 1000 * 1000);
-    if (ts->tv_nsec >= ns_in_sec)
-    {
-        ts->tv_sec += (ts->tv_nsec / ns_in_sec);
-        ts->tv_nsec %= ns_in_sec;
-    }
-}
-
-
-void timespec_now_adding_ms(struct timespec * ts, long ms)
-{
-    struct timeval tv;
-    gettimeofday(&tv, NULL);
-    timeval_add_ms(&tv, ms);
-    ts->tv_sec = tv.tv_sec;
-    ts->tv_nsec = (tv.tv_usec * 1000);
-}

@@ -113,7 +113,7 @@ static struct timespec * get_rand_time(
                     {
                         if (slot_idx == 0)
                         {
-                            timespec_add_ms(ts, delay_ms);
+                            zv_timespec_add_ms(ts, delay_ms);
                             return ts;
                         }
                         slot_idx--;
@@ -148,7 +148,7 @@ static struct timespec * get_rand_time(
             {
                 if ((*ptr & mask) == 0)
                 {
-                    timespec_add_ms(ts, delay_ms);
+                    zv_timespec_add_ms(ts, delay_ms);
                     return ts;
                 }
                 delay_ms++;
@@ -300,25 +300,25 @@ static int test5_func(zv_timer_pool_t * timer_pool)
         return rc;
 
     const size_t count = (sizeof(test.timers) / sizeof(test.timers[0]));
-    struct timeval tv;
-    gettimeofday(&tv, NULL);
-    srand(tv.tv_sec);
+    struct timespec ts_now;
+    clock_gettime(CLOCK_REALTIME, &ts_now);
+    srand(ts_now.tv_sec);
 
     // schedule all timers
     for (size_t idx=0; idx<count; idx++)
     {
         const int delay = randr(1000);
-        struct timespec ts = { tv.tv_sec, (tv.tv_usec - (tv.tv_usec % 1000)) * 1000 };
-        timespec_add_ms(&ts, delay);
         struct timer_s * timer = &test.timers[idx];
         timer->test = &test;
-        timer->ts = ts;
+        timer->ts.tv_sec = ts_now.tv_sec;
+        timer->ts.tv_nsec = (ts_now.tv_nsec - (ts_now.tv_nsec % 1000000));
+        zv_timespec_add_ms(&timer->ts, delay);
         timer->cancel = 0;
         ZV_LOG_DEBUG(test_log,
             "schedule timer 0x%" PRIxPTR " @ %ld.%.3ld",
             (uintptr_t) &test.timers[idx],
-            ts.tv_sec,
-            ts.tv_nsec / (1000 * 1000)
+            timer->ts.tv_sec,
+            timer->ts.tv_nsec / 1000000
         );
     }
 
@@ -375,8 +375,9 @@ static int test5_func(zv_timer_pool_t * timer_pool)
                     abort();
                 }
 
-                gettimeofday(&tv, NULL);
-                struct timespec ts = { tv.tv_sec, (tv.tv_usec / 1000) * (1000 * 1000) };
+                struct timespec ts;
+                clock_gettime(CLOCK_REALTIME, &ts);
+                ts.tv_nsec -= (ts.tv_nsec % 1000000);
 
                 const int existing = (rnd < ((RAND_MAX)/4));
                 struct timespec * fire_time = get_rand_time(
