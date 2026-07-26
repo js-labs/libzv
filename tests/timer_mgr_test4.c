@@ -1,6 +1,6 @@
 #include "zv/os_time.h"
 #include "zv/thread_pool.h"
-#include "zv/timer_pool.h"
+#include "zv/timer_mgr.h"
 #include "zv/semaphore.h"
 #include "helpers.h"
 
@@ -25,7 +25,7 @@ static struct timespec * timer_func(void * arg, struct timespec * repeat_time)
     return repeat_time;
 }
 
-static int test4_func(zv_timer_pool_t * timer_pool)
+static int test4_func(zv_timer_mgr_t * timer_mgr)
 {
     struct timer_s timer;
     int rc = sem_init(&timer.sem, 0, 0);
@@ -36,10 +36,10 @@ static int test4_func(zv_timer_pool_t * timer_pool)
         struct timespec fire_time;
         clock_gettime(CLOCK_REALTIME, &fire_time);
         zv_timespec_add_ms(&fire_time, 1);
-        zv_timer_pool_at(timer_pool, &fire_time, &timer, &timer_func);
+        zv_timer_mgr_at(timer_mgr, &fire_time, &timer, &timer_func);
 
         sem_wait(&timer.sem);
-        int cancel_rc = zv_timer_pool_cancel_sync(timer_pool, &timer);
+        int cancel_rc = zv_timer_mgr_cancel_sync(timer_mgr, &timer);
         if (cancel_rc != 0)
             rc = -2;
 
@@ -48,7 +48,7 @@ static int test4_func(zv_timer_pool_t * timer_pool)
     return rc;
 }
 
-int timer_pool_test4()
+int timer_mgr_test4()
 {
-    return run_timer_pool_test(&test4_func);
+    return run_timer_mgr_test(&test4_func);
 }

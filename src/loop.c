@@ -152,12 +152,12 @@ int _zv_loop_init(
     pthread_key_t tls_iov;
     if (pthread_key_create(&tls_iov, &free) == 0)
     {
-        const clockid_t * clockid = config->timer_pool.use_custom_clock
-            ? &config->timer_pool.clockid
+        const clockid_t * clockid = config->timer_mgr.use_custom_clock
+            ? &config->timer_mgr.clockid
             : NULL;
 
-        zv_timer_pool_t * timer_pool = zv_timer_pool_create(thread_pool, clockid);
-        if (timer_pool)
+        zv_timer_mgr_t * timer_mgr = zv_timer_mgr_create(thread_pool, clockid);
+        if (timer_mgr)
         {
             size_t iov_max = config->channel.iov_max;
             if (iov_max == 0)
@@ -174,7 +174,7 @@ int _zv_loop_init(
             loop->config = *config;
             loop->config.channel.iov_max = iov_max;
             loop->thread_pool = thread_pool;
-            loop->timer_pool = timer_pool;
+            loop->timer_mgr = timer_mgr;
             loop->get_type = get_type;
             loop->run = run;
             loop->wakeup = wakeup;
@@ -202,9 +202,9 @@ zv_thread_pool_t * zv_loop_get_thread_pool(zv_loop_t * loop)
 }
 
 
-zv_timer_pool_t * zv_loop_get_timer_pool(zv_loop_t * loop)
+zv_timer_mgr_t * zv_loop_get_timer_mgr(zv_loop_t * loop)
 {
-    return loop->timer_pool;
+    return loop->timer_mgr;
 }
 
 
@@ -330,7 +330,7 @@ void zv_loop_stop(zv_loop_t * loop)
 void zv_loop_destroy(zv_loop_t * loop)
 {
     loop->deinit(loop);
-    zv_timer_pool_destroy(loop->timer_pool);
+    zv_timer_mgr_destroy(loop->timer_mgr);
     pthread_key_delete(loop->tls_iov);
     zv_thread_pool_destroy(loop->thread_pool);
     free(loop);

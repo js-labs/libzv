@@ -332,17 +332,17 @@ zv_socket_t sock_connect(in_addr_t in_addr, in_port_t in_port)
 }
 
 
-int run_timer_pool_test(int (*test_func)(zv_timer_pool_t*))
+int run_timer_mgr_test(int (*test_func)(zv_timer_mgr_t*))
 {
     int rc = -1;
     zv_thread_pool_t * thread_pool = zv_thread_pool_create(2);
     if (thread_pool)
     {
-        zv_timer_pool_t * timer_pool = zv_timer_pool_create(thread_pool, NULL);
-        if (timer_pool)
+        zv_timer_mgr_t * timer_mgr = zv_timer_mgr_create(thread_pool, NULL);
+        if (timer_mgr)
         {
-            rc = test_func(timer_pool);
-            zv_timer_pool_destroy(timer_pool);
+            rc = test_func(timer_mgr);
+            zv_timer_mgr_destroy(timer_mgr);
         }
         zv_thread_pool_destroy(thread_pool);
     }

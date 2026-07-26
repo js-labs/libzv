@@ -1,6 +1,6 @@
 #include "zv/os_time.h"
 #include "zv/thread_pool.h"
-#include "zv/timer_pool.h"
+#include "zv/timer_mgr.h"
 #include "zv/semaphore.h"
 #include "helpers.h"
 
@@ -36,7 +36,7 @@ static struct timespec * timer_func(void * arg, struct timespec * repeat_time)
 }
 
 static void create_timers(
-    zv_timer_pool_t * timer_pool,
+    zv_timer_mgr_t * timer_mgr,
     sem_t * sem,
     int non_repeatable_idx,
     const struct timespec * fire_time
@@ -46,11 +46,11 @@ static void create_timers(
         struct timer_s * timer = malloc(sizeof(struct timer_s));
         timer->sem = sem;
         timer->repeat_interval_ms = (idx == non_repeatable_idx) ? 0 : 100;
-        zv_timer_pool_at(timer_pool, fire_time, timer, &timer_func);
+        zv_timer_mgr_at(timer_mgr, fire_time, timer, &timer_func);
     }
 }
 
-static int test2_func(zv_timer_pool_t * timer_pool)
+static int test2_func(zv_timer_mgr_t * timer_mgr)
 {
     sem_t sem;
     int rc = sem_init(&sem, 0, 0);
@@ -63,7 +63,7 @@ static int test2_func(zv_timer_pool_t * timer_pool)
         for (int idx=0; idx<3; idx++)
         {
             zv_timespec_add_ms(&ts, 200);
-            create_timers(timer_pool, &sem, idx, &ts);
+            create_timers(timer_mgr, &sem, idx, &ts);
         }
 
         for (int idx=0; idx<9; idx++)
@@ -74,7 +74,7 @@ static int test2_func(zv_timer_pool_t * timer_pool)
     return rc;
 }
 
-int timer_pool_test2()
+int timer_mgr_test2()
 {
-    return run_timer_pool_test(&test2_func);
+    return run_timer_mgr_test(&test2_func);
 }

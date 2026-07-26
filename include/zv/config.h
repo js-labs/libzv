@@ -60,7 +60,7 @@ struct zv_loop_config_s
         int use_custom_clock;
         clockid_t clockid;
     }
-    timer_pool;
+    timer_mgr;
 };
 
 ZV_EXPORT const char * zv_loop_type_get_name(enum zv_loop_type_e loop_type);

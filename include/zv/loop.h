@@ -25,7 +25,7 @@
 
 typedef struct zv_loop_s zv_loop_t;
 typedef struct zv_thread_pool_s zv_thread_pool_t;
-typedef struct zv_timer_pool_s zv_timer_pool_t;
+typedef struct zv_timer_mgr_s zv_timer_mgr_t;
 
 struct zv_loop_config_s;
 
@@ -33,7 +33,7 @@ ZV_EXPORT zv_loop_t * zv_loop_create(const struct zv_loop_config_s * config);
 
 ZV_EXPORT enum zv_loop_type_e zv_loop_get_type(zv_loop_t * loop);
 ZV_EXPORT zv_thread_pool_t * zv_loop_get_thread_pool(zv_loop_t * loop);
-ZV_EXPORT zv_timer_pool_t * zv_loop_get_timer_pool(zv_loop_t * loop);
+ZV_EXPORT zv_timer_mgr_t * zv_loop_get_timer_mgr(zv_loop_t * loop);
 
 ZV_EXPORT void zv_loop_run(zv_loop_t * loop);
 

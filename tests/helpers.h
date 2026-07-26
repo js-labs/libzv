@@ -7,7 +7,7 @@
 #include "zv/loop.h"
 #include "zv/os_socket.h"
 #include "zv/os_thread.h"
-#include "zv/timer_pool.h"
+#include "zv/timer_mgr.h"
 #include <stdint.h>
 
 struct sockaddr_in make_sockaddr_in(in_addr_t in_addr, in_port_t in_port);
@@ -46,7 +46,7 @@ int accept_async(
 
 zv_socket_t sock_connect(in_addr_t in_addr, in_port_t in_port);
 
-int run_timer_pool_test(int (*test_func)(zv_timer_pool_t*));
+int run_timer_mgr_test(int (*test_func)(zv_timer_mgr_t*));
 
 long timeval_elapsed_time_us(const struct timeval * start, const struct timeval * end);
 void timeval_add_ms(struct timeval * tv, long ms);

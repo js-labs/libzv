@@ -61,7 +61,7 @@ const struct zv_loop_config_s * zv_loop_config_get_default()
             },
             .iov_max = 0 // use IOV_MAX
         },
-        .timer_pool =
+        .timer_mgr =
         {
             0, // use specific clock
             0  // clockid

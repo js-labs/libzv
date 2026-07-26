@@ -18,11 +18,11 @@ int connector2();
 int connector3();
 int ipv6();
 int stream_defragger1();
-int timer_pool_test1();
-int timer_pool_test2();
-int timer_pool_test3();
-int timer_pool_test4();
-int timer_pool_test5();
+int timer_mgr_test1();
+int timer_mgr_test2();
+int timer_mgr_test3();
+int timer_mgr_test4();
+int timer_mgr_test5();
 
 void run_test(int * failed_tests, const char * name, int (*test_func)())
 {
@@ -95,11 +95,11 @@ int main(int argc, const char * argv[])
     //RUN_TEST(connector3);
     RUN_TEST(ipv6);
     RUN_TEST(stream_defragger1);
-    RUN_TEST(timer_pool_test1);
-    RUN_TEST(timer_pool_test2);
-    RUN_TEST(timer_pool_test3);
-    RUN_TEST(timer_pool_test4);
-    RUN_TEST(timer_pool_test5);
+    RUN_TEST(timer_mgr_test1);
+    RUN_TEST(timer_mgr_test2);
+    RUN_TEST(timer_mgr_test3);
+    RUN_TEST(timer_mgr_test4);
+    RUN_TEST(timer_mgr_test5);
 
 #undef RUN_TEST
 
