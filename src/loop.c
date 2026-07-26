@@ -42,7 +42,7 @@
 #include <limits.h>
 #endif
 
-struct zv_log_layer_s _zv_loop_log = { "xv.loop", zv_log_level_info };
+struct zv_log_layer_s _zv_loop_log = { "zv.loop", zv_log_level_info };
 
 const char * zv_event_type_get_name(zv_event_type_t event_type)
 {

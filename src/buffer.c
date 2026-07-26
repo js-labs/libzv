@@ -30,7 +30,7 @@
 #include <stdatomic.h>
 #endif
 
-static struct zv_log_layer_s _zv_buffer_cache_log = { "xv.buffer_cache", zv_log_level_warning };
+static struct zv_log_layer_s _zv_buffer_cache_log = { "zv.buffer_cache", zv_log_level_warning };
 
 struct zv_buffer_cache_s
 {

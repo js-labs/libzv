@@ -53,7 +53,7 @@
 #endif
 
 
-struct zv_log_layer_s _zv_channel_log = { "xv.channel", zv_log_level_warning };
+struct zv_log_layer_s _zv_channel_log = { "zv.channel", zv_log_level_warning };
 
 
 struct zv_channel_s

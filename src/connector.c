@@ -31,7 +31,7 @@
 #include <errno.h>
 #endif
 
-static struct zv_log_layer_s _zv_connector_log = { "xv.connector", zv_log_level_warning };
+static struct zv_log_layer_s _zv_connector_log = { "zv.connector", zv_log_level_warning };
 
 struct zv_connector_s
 {

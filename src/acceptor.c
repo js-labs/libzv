@@ -33,7 +33,7 @@
 #endif
 #include <inttypes.h>
 
-static struct zv_log_layer_s _zv_acceptor_log = { "xv.acceptor", zv_log_level_warning };
+static struct zv_log_layer_s _zv_acceptor_log = { "zv.acceptor", zv_log_level_warning };
 
 struct zv_acceptor_s
 {
