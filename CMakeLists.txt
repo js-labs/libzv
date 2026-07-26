@@ -24,7 +24,7 @@ set(LIB_SRCS
     include/zv/semaphore.h
     include/zv/stream_defragger.h
     include/zv/thread_pool.h
-    include/zv/timer_pool.h
+    include/zv/timer_mgr.h
     src/acceptor.c
     src/array.c
     src/buffer.c
@@ -46,7 +46,7 @@ set(LIB_SRCS
     src/semaphore.c
     src/stream_defragger.c
     src/thread_pool.c
-    src/timer_pool.c
+    src/timer_mgr.c
 )
 
 if(CHANNEL_SEND_REF)
@@ -117,11 +117,11 @@ if(BUILD_TESTS)
         tests/ipv6.c
         tests/main.c
         tests/stream_defragger1.c
-        tests/timer_pool_test1.c
-        tests/timer_pool_test2.c
-        tests/timer_pool_test3.c
-        tests/timer_pool_test4.c
-        tests/timer_pool_test5.c
+        tests/timer_mgr_test1.c
+        tests/timer_mgr_test2.c
+        tests/timer_mgr_test3.c
+        tests/timer_mgr_test4.c
+        tests/timer_mgr_test5.c
     )
 
     set(BENCHMARK_SRCS

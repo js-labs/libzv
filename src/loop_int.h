@@ -24,7 +24,7 @@
 #include "zv/os_socket.h"
 #include "zv/os_thread.h"
 #include "zv/thread_pool.h"
-#include "zv/timer_pool.h"
+#include "zv/timer_mgr.h"
 
 #if defined(__INTELLISENSE__)
 #define _Atomic
@@ -174,7 +174,7 @@ struct zv_loop_s
 {
     struct zv_loop_config_s config;
     zv_thread_pool_t * thread_pool;
-    zv_timer_pool_t * timer_pool;
+    zv_timer_mgr_t * timer_mgr;
 
     enum zv_loop_type_e (*get_type)(struct zv_loop_s * loop);
     void (*run)(struct zv_loop_s * loop);

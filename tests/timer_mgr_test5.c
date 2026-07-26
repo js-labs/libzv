@@ -1,13 +1,13 @@
 #include "zv/log.h"
 #include "zv/os_time.h"
 #include "zv/thread_pool.h"
-#include "zv/timer_pool.h"
+#include "zv/timer_mgr.h"
 #include "helpers.h"
 #include <assert.h>
 #include <string.h>
 #include <inttypes.h>
 
-static struct zv_log_layer_s test_log = { "timer_pool_test5", zv_log_level_debug };
+static struct zv_log_layer_s test_log = { "timer_mgr_test5", zv_log_level_debug };
 
 struct test_s;
 
@@ -292,7 +292,7 @@ static void test_deinit(struct test_s * test)
     pthread_mutex_destroy(&test->mutex);
 }
 
-static int test5_func(zv_timer_pool_t * timer_pool)
+static int test5_func(zv_timer_mgr_t * timer_mgr)
 {
     struct test_s test;
     int rc = test_init(&test);
@@ -326,11 +326,11 @@ static int test5_func(zv_timer_pool_t * timer_pool)
     for (size_t idx=0; idx<count; idx++)
     {
         struct timer_s * timer = &test.timers[idx];
-        int rc = zv_timer_pool_at(timer_pool, &timer->ts, timer, timer_func);
+        int rc = zv_timer_mgr_at(timer_mgr, &timer->ts, timer, timer_func);
         if (rc != 0)
         {
             ZV_LOG_ERROR(test_log,
-                "internal_error: zv_timer_pool_at(0x%" PRIxPTR ") failed",
+                "internal_error: zv_timer_mgr_at(0x%" PRIxPTR ") failed",
                 (uintptr_t)timer
             );
             zv_log_flush();
@@ -410,11 +410,11 @@ static int test5_func(zv_timer_pool_t * timer_pool)
                     timer->ts.tv_sec,
                     timer->ts.tv_nsec / (1000 * 1000)
                 );
-                rc = zv_timer_pool_at(timer_pool, &timer->ts, timer, timer_func);
+                rc = zv_timer_mgr_at(timer_mgr, &timer->ts, timer, timer_func);
                 if (rc != 0)
                 {
                     // should not happen
-                    ZV_LOG_ERROR(test_log, "internal error: zv_timer_pool_at() failed");
+                    ZV_LOG_ERROR(test_log, "internal error: zv_timer_mgr_at() failed");
                     zv_log_flush();
                     abort();
                 }
@@ -451,7 +451,7 @@ static int test5_func(zv_timer_pool_t * timer_pool)
             pthread_mutex_unlock(&test.mutex);
             if (timer != NULL)
             {
-                int rc = zv_timer_pool_cancel_sync(timer_pool, timer);
+                int rc = zv_timer_mgr_cancel_sync(timer_mgr, timer);
                 if (rc == 0)
                 {
                     pthread_mutex_lock(&test.mutex);
@@ -463,7 +463,7 @@ static int test5_func(zv_timer_pool_t * timer_pool)
                 {
                     // can happen if the timer pool worker is calling
                     // timer function for that timer right now
-                    // printf("zv_timer_pool_cancel_sync(%p) failed\n", timer);
+                    // printf("zv_timer_mgr_cancel_sync(%p) failed\n", timer);
                 }
             }
         }
@@ -473,7 +473,7 @@ static int test5_func(zv_timer_pool_t * timer_pool)
     return 0;
 }
 
-int timer_pool_test5()
+int timer_mgr_test5()
 {
-    return run_timer_pool_test(&test5_func);
+    return run_timer_mgr_test(&test5_func);
 }

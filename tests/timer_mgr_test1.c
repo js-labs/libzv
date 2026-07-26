@@ -1,6 +1,6 @@
 #include "zv/os_time.h"
 #include "zv/thread_pool.h"
-#include "zv/timer_pool.h"
+#include "zv/timer_mgr.h"
 #include "zv/semaphore.h"
 #include "helpers.h"
 #include <limits.h>
@@ -60,7 +60,7 @@ static struct timespec * timer_func(void * arg, struct timespec * repeat_time)
     return repeat_time;
 }
 
-static int test1_func(zv_timer_pool_t * timer_pool)
+static int test1_func(zv_timer_mgr_t * timer_mgr)
 {
     struct timespec now;
     clock_gettime(CLOCK_REALTIME, &now);
@@ -71,21 +71,21 @@ static int test1_func(zv_timer_pool_t * timer_pool)
     {
         struct timespec fire_time = now;
         zv_timespec_add_ms(&fire_time, REPEAT_INTERVAL_MS);
-        rc = zv_timer_pool_at(timer_pool, &fire_time, &timer, &timer_func);
+        rc = zv_timer_mgr_at(timer_mgr, &fire_time, &timer, &timer_func);
         if (rc == 0)
         {
             sem_wait(&timer.sem);
-            zv_timer_pool_cancel_sync(timer_pool, &timer);
+            zv_timer_mgr_cancel_sync(timer_mgr, &timer);
             printf("min_jitter=%dms max_jitter=%dms\n", timer.min_jitter, timer.max_jitter);
         }
         else
-            printf("zv_timer_pool_at() failed\n");
+            printf("zv_timer_mgr_at() failed\n");
         timer_deinit(&timer);
     }
     return rc;
 }
 
-int timer_pool_test1()
+int timer_mgr_test1()
 {
-    return run_timer_pool_test(&test1_func);
+    return run_timer_mgr_test(&test1_func);
 }
