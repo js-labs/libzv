@@ -134,7 +134,7 @@ static int tcp_echo_server_zv_init(
                 zv_acceptor_start(acceptor);
                 printf(
                     "TCP echo server (ZV/%s) started on port %hu\n",
-                    zv_loop_type_get_name(zv_loop_get_type(loop)),
+                    zv_loop_backend_get_name(zv_loop_get_backend(loop)),
                     *port
                 );
 

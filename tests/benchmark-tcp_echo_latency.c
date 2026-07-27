@@ -106,10 +106,10 @@ static int send_test_msgs(zv_socket_t sockfd, int count, long * response_times)
 }
 
 
-static void run_benchmark(enum zv_loop_type_e loop_type)
+static void run_benchmark(enum zv_loop_backend_e loop_backend)
 {
     struct zv_loop_config_s loop_config = *zv_loop_config_get_default();
-    loop_config.loop_type = loop_type;
+    loop_config.loop_backend = loop_backend;
 
     in_port_t server_port;
     tcp_echo_server_t * echo_server = tcp_echo_server_create(&loop_config, &server_port);
@@ -174,11 +174,11 @@ static void run_benchmark(enum zv_loop_type_e loop_type)
 
 int benchmark_tcp_echo_latency()
 {
-    enum zv_loop_type_e loop_types[] = {
-        zv_loop_type_select
+    enum zv_loop_backend_e loop_backends[] = {
+        zv_loop_backend_select
         /*
 #if defined(__linux__) || defined(_WIN32)
-        , zv_loop_type_poll
+        , zv_loop_backend_poll
 #endif
         */
     };
@@ -186,10 +186,10 @@ int benchmark_tcp_echo_latency()
     // zv_log_add_file_backend(stdout);
     // zv_loop_set_log_level(zv_log_level_debug);
 
-    for (int idx=0; idx<sizeof(loop_types)/sizeof(loop_types[0]); idx++)
+    for (int idx=0; idx<sizeof(loop_backends)/sizeof(loop_backends[0]); idx++)
     {
-        enum zv_loop_type_e loop_type = loop_types[idx];
-        run_benchmark(loop_type);
+        enum zv_loop_backend_e loop_backend = loop_backends[idx];
+        run_benchmark(loop_backend);
     }
 
     return 0;

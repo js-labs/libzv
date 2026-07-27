@@ -103,12 +103,12 @@ zv_loop_t * zv_loop_create(const struct zv_loop_config_s * config)
 
     struct zv_loop_s * loop;
 
-    switch (config->loop_type) {
-        case zv_loop_type_select:
+    switch (config->loop_backend) {
+        case zv_loop_backend_select:
             loop = _zv_loop_create_select(config);
         break;
     #if !defined(__APPLE__)
-        case zv_loop_type_poll:
+        case zv_loop_backend_poll:
             loop = _zv_loop_create_poll(config);
         break;
     #endif
@@ -130,7 +130,7 @@ zv_loop_t * zv_loop_create(const struct zv_loop_config_s * config)
 int _zv_loop_init(
     struct zv_loop_s * loop,
     const struct zv_loop_config_s * config,
-    enum zv_loop_type_e (*get_type)(struct zv_loop_s*),
+    enum zv_loop_backend_e (*get_backend)(struct zv_loop_s*),
     void (*run)(struct zv_loop_s*),
     void (*wakeup)(struct zv_loop_s*),
     void (*deinit)(struct zv_loop_s*)
@@ -175,7 +175,7 @@ int _zv_loop_init(
             loop->config.channel.iov_max = iov_max;
             loop->thread_pool = thread_pool;
             loop->timer_mgr = timer_mgr;
-            loop->get_type = get_type;
+            loop->get_backend = get_backend;
             loop->run = run;
             loop->wakeup = wakeup;
             loop->deinit = deinit;
@@ -190,9 +190,9 @@ int _zv_loop_init(
 }
 
 
-enum zv_loop_type_e zv_loop_get_type(zv_loop_t * loop)
+enum zv_loop_backend_e zv_loop_get_backend(zv_loop_t * loop)
 {
-    return loop->get_type(loop);
+    return loop->get_backend(loop);
 }
 
 

@@ -24,11 +24,11 @@
 #include "zv/os_time.h"
 #include <stddef.h>
 
-enum zv_loop_type_e
+enum zv_loop_backend_e
 {
-    zv_loop_type_select
+    zv_loop_backend_select
 #if defined(_WIN32) || defined(__linux__)
-    , zv_loop_type_poll
+    , zv_loop_backend_poll
 #endif
 };
 
@@ -40,7 +40,7 @@ struct zv_channel_in_queue_config_s
 
 struct zv_loop_config_s
 {
-    enum zv_loop_type_e loop_type;
+    enum zv_loop_backend_e loop_backend;
 
     struct
     {
@@ -63,7 +63,7 @@ struct zv_loop_config_s
     timer_mgr;
 };
 
-ZV_EXPORT const char * zv_loop_type_get_name(enum zv_loop_type_e loop_type);
+ZV_EXPORT const char * zv_loop_backend_get_name(enum zv_loop_backend_e loop_backend);
 ZV_EXPORT const struct zv_loop_config_s * zv_loop_config_get_default();
 
 #endif /* !defined(ZV_CONFIG_H) */

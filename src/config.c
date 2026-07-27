@@ -21,14 +21,14 @@
 #include <assert.h>
 
 
-const char * zv_loop_type_get_name(enum zv_loop_type_e loop_type)
+const char * zv_loop_backend_get_name(enum zv_loop_backend_e loop_backend)
 {
-    switch (loop_type)
+    switch (loop_backend)
     {
-        case zv_loop_type_select:
+        case zv_loop_backend_select:
             return "SELECT";
 #if defined(_WIN32) || defined(__linux__)
-        case zv_loop_type_poll:
+        case zv_loop_backend_poll:
             return "POLL";
 #endif
         default:
@@ -42,11 +42,11 @@ const struct zv_loop_config_s * zv_loop_config_get_default()
 {
     static const struct zv_loop_config_s config = 
     {
-        .loop_type =
+        .loop_backend =
 #if defined(_WIN32) || defined(__linux__)
-            zv_loop_type_poll,
+            zv_loop_backend_poll,
 #else
-            zv_loop_type_select,
+            zv_loop_backend_select,
 #endif
         .thread_pool =
         {

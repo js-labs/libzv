@@ -31,7 +31,7 @@ struct zv_loop_config_s;
 
 ZV_EXPORT zv_loop_t * zv_loop_create(const struct zv_loop_config_s * config);
 
-ZV_EXPORT enum zv_loop_type_e zv_loop_get_type(zv_loop_t * loop);
+ZV_EXPORT enum zv_loop_backend_e zv_loop_get_backend(zv_loop_t * loop);
 ZV_EXPORT zv_thread_pool_t * zv_loop_get_thread_pool(zv_loop_t * loop);
 ZV_EXPORT zv_timer_mgr_t * zv_loop_get_timer_mgr(zv_loop_t * loop);
 
