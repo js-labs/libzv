@@ -176,7 +176,7 @@ struct zv_loop_s
     zv_thread_pool_t * thread_pool;
     zv_timer_mgr_t * timer_mgr;
 
-    enum zv_loop_type_e (*get_type)(struct zv_loop_s * loop);
+    enum zv_loop_backend_e (*get_backend)(struct zv_loop_s * loop);
     void (*run)(struct zv_loop_s * loop);
     void (*wakeup)(struct zv_loop_s * loop);
     void (*deinit)(struct zv_loop_s * loop);
@@ -190,7 +190,7 @@ struct zv_loop_s
 int _zv_loop_init(
     struct zv_loop_s * loop,
     const struct zv_loop_config_s * config,
-    enum zv_loop_type_e (*get_type)(struct zv_loop_s*),
+    enum zv_loop_backend_e (*get_backend)(struct zv_loop_s*),
     void (*run)(struct zv_loop_s*),
     void (*wakeup)(struct zv_loop_s*),
     void (*destroy)(struct zv_loop_s*)

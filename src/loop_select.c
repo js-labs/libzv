@@ -268,9 +268,9 @@ static struct zv_event_handler_s * _zv_loop_select_remove_handlers(
 }
 
 
-static enum zv_loop_type_e _zv_loop_select_get_type(struct zv_loop_s * loop)
+static enum zv_loop_backend_e _zv_loop_select_get_backend(struct zv_loop_s * loop)
 {
-    return zv_loop_type_select;
+    return zv_loop_backend_select;
 }
 
 
@@ -469,7 +469,7 @@ struct zv_loop_s * _zv_loop_create_select(const struct zv_loop_config_s * config
         int rc = _zv_loop_init(
             &impl->loop,
             config,
-            &_zv_loop_select_get_type,
+            &_zv_loop_select_get_backend,
             &_zv_loop_select_run,
             &_zv_loop_select_wakeup,
             &_zv_loop_select_deinit
