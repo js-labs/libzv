@@ -432,11 +432,15 @@ int zv_timer_mgr_at(
 ) {
     pthread_mutex_lock(&timer_mgr->mutex);
     int inserted;
-    int ret = -1;
+    int ret;
     const int start_worker = ((buffer_set_get_size(timer_mgr->timer_by_id) == 0) && (timer_mgr->firing_timer == 0));
     struct zv_timer_mgr_timer_info_s * timer_info;
     timer_info = buffer_set_insert(timer_mgr->timer_by_id, &timer_id, &inserted);
-    if ((timer_info != NULL) && inserted)
+    if (timer_info == NULL)
+        ret = ZV_ERR_NOMEM;
+    else if (!inserted)
+        ret = ZV_TIMER_MGR_ERR_ID_IN_USE;
+    else
     {
         timer_info->timer_id = timer_id;
         timer_info->func = func;
@@ -481,7 +485,7 @@ int zv_timer_mgr_cancel_sync(
     zv_timer_mgr_t * timer_mgr,
     void * timer_id
 ) {
-    int rc = -1;
+    int rc = ZV_TIMER_MGR_ERR_NOT_FOUND;
     pthread_mutex_lock(&timer_mgr->mutex);
     if (timer_mgr->firing_timer && (timer_mgr->firing_timer_id == timer_id))
     {

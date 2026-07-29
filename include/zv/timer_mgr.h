@@ -26,6 +26,10 @@
 typedef struct zv_thread_pool_s zv_thread_pool_t;
 typedef struct zv_timer_mgr_s zv_timer_mgr_t;
 
+#define ZV_ERR_NOMEM -1
+#define ZV_TIMER_MGR_ERR_ID_IN_USE -100
+#define ZV_TIMER_MGR_ERR_NOT_FOUND -101
+
 /**
  * @brief Creates a timer pool that operates on a specified system clock.
  *
@@ -47,12 +51,55 @@ ZV_EXPORT zv_timer_mgr_t * zv_timer_mgr_create(
     const clockid_t * clockid
 );
 
+/**
+ * @brief Schedules a timer to fire at the specified absolute time.
+ *
+ * @param timer_mgr Pointer to the zv_timer_mgr_t instance.
+ * @param abstime Absolute time at which the timer should fire.
+ * @param timer_id Caller-supplied identifier for the timer. Must be unique among
+ *                 the currently scheduled timers.
+ * @param func Callback invoked when the timer fires.
+ *
+ * @return 0 on success,
+ *         ZV_TIMER_MGR_ERR_ID_IN_USE if a timer with the same @p timer_id is
+ *         already scheduled, or
+ *         ZV_ERR_NOMEM on allocation failure.
+ */
+
 ZV_EXPORT int zv_timer_mgr_at(
     zv_timer_mgr_t * timer_mgr,
-    const struct timespec * tv,
+    const struct timespec * abstime,
     void * timer_id,
     struct timespec * (*func)(void*, struct timespec*)
 );
+
+/**
+ * @brief Cancels a previously scheduled timer, waiting for any in-progress
+ *        callback to finish before returning.
+ *
+ * If the timer identified by @p timer_id is currently firing (its callback is
+ * being executed by the worker thread), this function blocks until that
+ * callback returns, and only then removes the timer. Consequently, once
+ * zv_timer_mgr_cancel_sync() returns successfully, the timer's callback is
+ * guaranteed neither to be running nor to be invoked again.
+ *
+ * The call is thread-safe and may be invoked concurrently with
+ * zv_timer_mgr_at() and other cancellations.
+ *
+ * @note Must not be called from within the timer's own callback, as that would
+ *       deadlock waiting for the callback to complete.
+ * @note For a one-shot timer that is firing while cancelled, the function waits
+ *       for the callback to finish and then reports ZV_TIMER_MGR_ERR_NOT_FOUND,
+ *       since the timer is no longer scheduled once its callback has run.
+ *
+ * @param timer_mgr Pointer to the zv_timer_mgr_t instance.
+ * @param timer_id Identifier of the timer to cancel, as passed to
+ *                 zv_timer_mgr_at().
+ *
+ * @return 0 on success, or
+ *         ZV_TIMER_MGR_ERR_NOT_FOUND if no timer with the given @p timer_id is
+ *         currently scheduled.
+ */
 
 ZV_EXPORT int zv_timer_mgr_cancel_sync(
     zv_timer_mgr_t * timer_mgr,
