@@ -31,7 +31,7 @@ typedef struct zv_timer_mgr_s zv_timer_mgr_t;
 #define ZV_TIMER_MGR_ERR_NOT_FOUND -101
 
 /**
- * @brief Creates a timer pool that operates on a specified system clock.
+ * @brief Creates a timer manager that operates on a specified system clock.
  *
  * On Linux, you can configure a condition variable to use a specific system timer
  * when calling pthread_cond_timedwait(). To enable this functionality, provide
