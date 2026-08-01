@@ -15,6 +15,7 @@ set(LIB_SRCS
     include/zv/channel.h
     include/zv/config.h
     include/zv/connector.h
+    include/zv/err.h
     include/zv/export.h
     include/zv/log.h
     include/zv/loop.h

@@ -17,6 +17,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "zv/err.h"
 #include "zv/os_thread.h"
 #include "zv/os_time.h"
 #include "zv/thread_pool.h"

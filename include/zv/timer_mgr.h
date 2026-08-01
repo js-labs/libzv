@@ -26,10 +26,6 @@
 typedef struct zv_thread_pool_s zv_thread_pool_t;
 typedef struct zv_timer_mgr_s zv_timer_mgr_t;
 
-#define ZV_ERR_NOMEM -1
-#define ZV_TIMER_MGR_ERR_ID_IN_USE -100
-#define ZV_TIMER_MGR_ERR_NOT_FOUND -101
-
 /**
  * @brief Creates a timer manager that operates on a specified system clock.
  *

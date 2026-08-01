@@ -17,15 +17,19 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "zv/err.h"
 #include "zv/connector.h"
 #include "zv/log.h"
 #include "zv/loop.h"
 #include "zv/thread_pool.h"
 #include "loop_int.h"
 #include "misc.h"
+#include <inttypes.h>
 #include <string.h>
 
-#if !defined(_WIN32)
+#if defined(_WIN32)
+#include <WS2tcpip.h>
+#else
 #include <netinet/tcp.h>
 #include <fcntl.h>
 #include <errno.h>
@@ -166,6 +170,7 @@ static void _zv_connector_task(struct zv_thread_pool_task_s * task)
     free(connector);
 }
 
+
 int zv_connector_create(
     zv_loop_t * loop,
     const struct sockaddr * addr,
@@ -177,7 +182,15 @@ int zv_connector_create(
     const size_t connector_size = _zv_round(sizeof(struct zv_connector_s), sizeof(void*));
     struct zv_connector_s * connector = malloc(connector_size + addrlen);
     if (connector == NULL)
-        return ENOMEM;
+        return ZV_ERR_NOMEM;
+
+    char buffer[INET6_ADDRSTRLEN + 6];
+    ZV_LOG_DEBUG(
+        _zv_connector_log,
+        "0x%" PRIxPTR ": connecting to %s",
+        (intptr_t)connector,
+        zv_sockaddr_ntop(addr, addrlen, buffer, sizeof(buffer))
+    );
 
     connector->loop = loop;
     connector->addrlen = addrlen;
@@ -191,21 +204,25 @@ int zv_connector_create(
     return 0;
 }
 
+
 zv_loop_t * zv_connector_get_loop(zv_connector_t * connector)
 {
     return connector->loop;
 }
+
 
 void * zv_connector_get_extra_data(zv_connector_t * connector)
 {
     return connector->extra_data;
 }
 
+
 const struct sockaddr * zv_connector_get_addr(zv_connector_t * connector, socklen_t * addrlen)
 {
     *addrlen = connector->addrlen;
     return _zv_connector_get_addr(connector);
 }
+
 
 void zv_connector_set_log_level(enum zv_log_level level)
 {
