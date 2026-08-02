@@ -75,30 +75,6 @@ struct zv_timer_mgr_fire_time_s
 };
 
 
-static inline void _zv_timer_mgr_fire_time_init(
-    struct zv_timer_mgr_fire_time_s * fire_time,
-    const struct timespec * abstime,
-    void * timer_id
-) {
-    fire_time->abstime = *abstime;
-    fire_time->head.prev = NULL;
-    fire_time->head.next = NULL;
-    fire_time->head.timer_id = timer_id;
-    fire_time->tail = &fire_time->head;
-}
-
-
-static inline void _zv_timer_mgr_fire_time_append(
-    struct zv_timer_mgr_fire_time_s * fire_time,
-    struct zv_timer_mgr_fire_time_item_s * item
-) {
-    item->prev = fire_time->tail;
-    item->next = NULL;
-    fire_time->tail->next = item;
-    fire_time->tail = item;
-}
-
-
 static int _zv_timer_mgr_timer_id_cmp_cb(const void * v1, const void * v2, void * thunk)
 {
     const struct zv_timer_mgr_timer_info_s * t1 = v1;
@@ -154,82 +130,58 @@ static void _zv_timer_mgr_fire_time_move_cb(void * dst, void * src, void * thunk
 }
 
 
-static void _zv_timer_mgr_process_timers(
-    struct zv_timer_mgr_s * timer_mgr,
-    struct zv_timer_mgr_fire_time_s * fire_time
+static int _zv_timer_mgr_insert_locked(
+    zv_timer_mgr_t * timer_mgr,
+    const struct timespec * abstime,
+    void * timer_id,
+    struct timespec * (*func)(void*, struct timespec*)
 ) {
-    struct zv_timer_mgr_fire_time_item_s * fire_time_item = fire_time->tail;
-    for (;;)
+    int inserted;
+    struct zv_timer_mgr_timer_info_s * timer_info;
+    timer_info = buffer_set_insert(timer_mgr->timer_by_id, &timer_id, &inserted);
+    if (timer_info == NULL)
+        return ZV_ERR_NOMEM;
+    else if (!inserted)
+        return ZV_TIMER_MGR_ERR_ID_IN_USE;
+
+    struct zv_timer_mgr_fire_time_s * fire_time;
+    fire_time = buffer_set_insert(timer_mgr->timer_by_fire_time, abstime, &inserted);
+    if (fire_time == NULL)
     {
-        void * timer_id = fire_time_item->timer_id;
-
-        struct zv_timer_mgr_timer_info_s * timer_info;
-        timer_info = buffer_set_erase(timer_mgr->timer_by_id, &timer_id);
-        if (timer_info == NULL)
-            abort();
-
-        timer_mgr->firing_timer = 1;
-        timer_mgr->firing_timer_id = timer_info->timer_id;
-        struct timespec * (*func)(void*, struct timespec*) = timer_info->func;
-
-        pthread_mutex_unlock(&timer_mgr->mutex);
-
-        struct timespec repeat_time_storage;
-        const struct timespec * repeat_time = func(timer_id, &repeat_time_storage);
-
-        pthread_mutex_lock(&timer_mgr->mutex);
-
-        if (repeat_time != NULL)
-        {
-            int inserted;
-            timer_info = buffer_set_insert(timer_mgr->timer_by_id, &timer_id, &inserted);
-            if (inserted)
-            {
-                timer_info->timer_id = timer_id;
-                timer_info->fire_time = repeat_time_storage;
-                timer_info->func = func;
-
-                struct zv_timer_mgr_fire_time_s * new_fire_time;
-                new_fire_time = buffer_set_insert(timer_mgr->timer_by_fire_time, repeat_time, &inserted);
-                if (inserted)
-                {
-                    _zv_timer_mgr_fire_time_init(new_fire_time, repeat_time, timer_id);
-                    // goto to the end of the loop to free an item if required
-                }
-                else
-                {
-                    if (fire_time_item == &fire_time->head)
-                    {
-                        struct zv_timer_mgr_fire_time_item_s * new_item;
-                        new_item = malloc(sizeof(struct zv_timer_mgr_fire_time_item_s));
-                        new_item->timer_id = timer_id;
-                        _zv_timer_mgr_fire_time_append(new_fire_time, new_item);
-                        break;
-                    }
-                    else
-                    {
-                        struct zv_timer_mgr_fire_time_item_s * prev = fire_time_item->prev;
-                        _zv_timer_mgr_fire_time_append(new_fire_time, fire_time_item);
-                        fire_time_item = prev;
-                        continue;
-                    }
-                }
-            }
-            else
-            {
-                // looks like the timer with such id already scheduled
-            }
-        }
-
-        if (fire_time_item == &fire_time->head)
-            break;
-        else
-        {
-            struct zv_timer_mgr_fire_time_item_s * prev = fire_time_item->prev;
-            free(fire_time_item);
-            fire_time_item = prev;
-        }
+        buffer_set_erase(timer_mgr->timer_by_id, &timer_id);
+        return ZV_ERR_NOMEM;
     }
+
+    timer_info->timer_id = timer_id;
+    timer_info->func = func;
+    timer_info->fire_time = *abstime;
+
+    if (inserted)
+    {
+        fire_time->abstime = *abstime;
+        fire_time->head.prev = NULL;
+        fire_time->head.next = NULL;
+        fire_time->head.timer_id = timer_id;
+        fire_time->tail = &fire_time->head;
+    }
+    else
+    {
+        struct zv_timer_mgr_fire_time_item_s * fire_time_item;
+        fire_time_item = malloc(sizeof(struct zv_timer_mgr_fire_time_item_s));
+        if (fire_time_item == NULL)
+        {
+            buffer_set_erase(timer_mgr->timer_by_id, &timer_id);
+            return ZV_ERR_NOMEM;
+        }
+
+        fire_time_item->timer_id = timer_id;
+        fire_time_item->prev = fire_time->tail;
+        fire_time_item->next = NULL;
+        fire_time->tail->next = fire_time_item;
+        fire_time->tail = fire_time_item;
+    }
+
+    return 0;
 }
 
 
@@ -266,27 +218,45 @@ static void _zv_timer_mgr_worker(struct zv_thread_pool_task_s * task)
                     break;
             }
 
-            // fire_time < now
-            // it is better to make a copy of 'fire_time' and erase it
-            // from the set, because inside _zv_timer_mgr_process_timers()
-            // we release mutex, so the list of timers can be changed
-            // by zv_timer_mgr_at() or zv_timer_mgr_cancel_sync()
+            void * timer_id = fire_time->tail->timer_id;
+            if (&fire_time->head == fire_time->tail)
+                buffer_set_erase_at(timer_mgr->timer_by_fire_time, it);
+            else
+            {
+                struct zv_timer_mgr_fire_time_item_s * tail = fire_time->tail;
+                tail->prev->next = NULL;
+                fire_time->tail = tail->prev;
+                free(tail);
+            }
 
-            struct zv_timer_mgr_fire_time_s local_fire_time;
-            _zv_timer_mgr_fire_time_move(&local_fire_time, fire_time);
+            struct zv_timer_mgr_timer_info_s * timer_info;
+            timer_info = buffer_set_erase(timer_mgr->timer_by_id, &timer_id);
+            if (timer_info == NULL)
+                abort();
 
-            buffer_set_erase_at(timer_mgr->timer_by_fire_time, it);
+            struct timespec * (*func)(void*, struct timespec*) = timer_info->func;
+            timer_mgr->firing_timer = 1;
+            timer_mgr->firing_timer_id = timer_id;
 
-            _zv_timer_mgr_process_timers(timer_mgr, &local_fire_time);
+            pthread_mutex_unlock(&timer_mgr->mutex);
+
+            struct timespec repeat_time_storage;
+            const struct timespec * repeat_time = func(timer_id, &repeat_time_storage);
+
+            pthread_mutex_lock(&timer_mgr->mutex);
+
+            if (repeat_time != NULL)
+                _zv_timer_mgr_insert_locked(timer_mgr, repeat_time, timer_id, func);
 
             it = buffer_set_begin(timer_mgr->timer_by_fire_time);
             it_end = buffer_set_end(timer_mgr->timer_by_fire_time);
         }
 
+        timer_mgr->firing_timer = 0;
+
         if (it == it_end)
             break;
 
-        timer_mgr->firing_timer = 0;
         fire_time = buffer_set_get_at(timer_mgr->timer_by_fire_time, it);
 
         if (timer_mgr->waiters > 0)
@@ -420,10 +390,12 @@ void zv_timer_mgr_destroy(zv_timer_mgr_t * timer_mgr)
     free(timer_mgr);
 }
 
+/*
 static void _value_printer(FILE * file, const void * value)
 {
     fprintf(file, "%p", *(const void**)value);
 }
+*/
 
 int zv_timer_mgr_at(
     zv_timer_mgr_t * timer_mgr,
@@ -432,33 +404,14 @@ int zv_timer_mgr_at(
     struct timespec * (*func)(void*, struct timespec*)
 ) {
     pthread_mutex_lock(&timer_mgr->mutex);
-    int inserted;
-    int ret;
-    const int start_worker = ((buffer_set_get_size(timer_mgr->timer_by_id) == 0) && (timer_mgr->firing_timer == 0));
-    struct zv_timer_mgr_timer_info_s * timer_info;
-    timer_info = buffer_set_insert(timer_mgr->timer_by_id, &timer_id, &inserted);
-    if (timer_info == NULL)
-        ret = ZV_ERR_NOMEM;
-    else if (!inserted)
-        ret = ZV_TIMER_MGR_ERR_ID_IN_USE;
-    else
+
+    const int start_worker =
+        ((buffer_set_get_size(timer_mgr->timer_by_id) == 0)
+         && (timer_mgr->firing_timer == 0));
+
+    int rc = _zv_timer_mgr_insert_locked(timer_mgr, abstime, timer_id, func);
+    if (rc == 0)
     {
-        timer_info->timer_id = timer_id;
-        timer_info->func = func;
-        timer_info->fire_time = *abstime;
-
-        struct zv_timer_mgr_fire_time_s * fire_time;
-        fire_time = buffer_set_insert(timer_mgr->timer_by_fire_time, abstime, &inserted);
-        if (inserted)
-            _zv_timer_mgr_fire_time_init(fire_time, abstime, timer_id);
-        else
-        {
-            struct zv_timer_mgr_fire_time_item_s * fire_time_item;
-            fire_time_item = malloc(sizeof(struct zv_timer_mgr_fire_time_item_s));
-            fire_time_item->timer_id = timer_id;
-            _zv_timer_mgr_fire_time_append(fire_time, fire_time_item);
-        }
-
         if (start_worker)
         {
             timer_mgr->worker = 1;
@@ -466,19 +419,21 @@ int zv_timer_mgr_at(
         }
         else
         {
-            // wakeup worker only if the new timer should fire earlier
-            // than all timer scheduled before
-            if (inserted)
+            buffer_set_iterator_t * it = buffer_set_begin(timer_mgr->timer_by_fire_time);
+            struct zv_timer_mgr_fire_time_s * fire_time;
+            fire_time = buffer_set_get_at(timer_mgr->timer_by_fire_time, it);
+            if ((fire_time->abstime.tv_sec == abstime->tv_sec) &&
+                (fire_time->abstime.tv_nsec == abstime->tv_nsec) &&
+                (&fire_time->head == fire_time->tail))
             {
-                buffer_set_iterator_t * it = buffer_set_begin(timer_mgr->timer_by_fire_time);
-                if (buffer_set_get_at(timer_mgr->timer_by_fire_time, it) == fire_time)
-                    pthread_cond_signal(&timer_mgr->cond);
+                pthread_cond_signal(&timer_mgr->cond);
             }
         }
-        ret = 0;
     }
+
     pthread_mutex_unlock(&timer_mgr->mutex);
-    return ret;
+
+    return rc;
 }
 
 
