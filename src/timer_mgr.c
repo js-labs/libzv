@@ -36,13 +36,12 @@
 struct zv_timer_mgr_s
 {
     zv_thread_pool_t * thread_pool;
+    clockid_t clockid;
 
     pthread_mutex_t mutex;
     pthread_cond_t cond;
     buffer_set_t * timer_by_id;
     buffer_set_t * timer_by_fire_time;
-    clockid_t clockid;
-    char use_clockid;
     char worker;
     char firing_timer;
     void * firing_timer_id;
@@ -192,15 +191,7 @@ static void _zv_timer_mgr_worker(struct zv_thread_pool_task_s * task)
     for (;;)
     {
         struct timespec now;
-        if (timer_mgr->use_clockid)
-            clock_gettime(timer_mgr->clockid, &now);
-        else
-        {
-            struct timeval tv_now;
-            gettimeofday(&tv_now, NULL);
-            now.tv_sec = tv_now.tv_sec;
-            now.tv_nsec = (tv_now.tv_usec * 1000);
-        }
+        clock_gettime(timer_mgr->clockid, &now);
 
         buffer_set_iterator_t * it = buffer_set_begin(timer_mgr->timer_by_fire_time);
         buffer_set_iterator_t * it_end = buffer_set_end(timer_mgr->timer_by_fire_time);
@@ -276,7 +267,7 @@ static void _zv_timer_mgr_worker(struct zv_thread_pool_task_s * task)
 static int _zv_timer_mgr_init_mutex_and_cond(
     pthread_mutex_t * mutex,
     pthread_cond_t * cond,
-    const clockid_t * clockid
+    clockid_t clockid
 ) {
     int rc = pthread_mutex_init(mutex, NULL);
     if (rc == 0)
@@ -286,13 +277,24 @@ static int _zv_timer_mgr_init_mutex_and_cond(
         if (rc == 0)
         {
 #if defined(__linux__)
-            if (clockid != NULL)
-                pthread_condattr_setclock(&condattr, *clockid);
+            rc = pthread_condattr_setclock(&condattr, clockid);
+#elif defined(__APPLE__)
+            rc = (clockid == CLOCK_REALTIME) ? 0 : -1;
+#elif defined(_WIN32)
+            rc = ((clockid == CLOCK_REALTIME) || (clockid == CLOCK_MONOTONIC)) ? 0 : -1;
+#else
+#error Platform not supported
 #endif
-            rc = pthread_cond_init(cond, &condattr);
-            pthread_condattr_destroy(&condattr);
             if (rc == 0)
-                return 0;
+            {
+                rc = pthread_cond_init(cond, &condattr);
+                if (rc == 0)
+                {
+                    pthread_condattr_destroy(&condattr);
+                    return 0;
+                }
+            }
+            pthread_condattr_destroy(&condattr);
         }
         pthread_mutex_destroy(mutex);
     }
@@ -302,13 +304,8 @@ static int _zv_timer_mgr_init_mutex_and_cond(
 
 zv_timer_mgr_t * zv_timer_mgr_create(
     zv_thread_pool_t * thread_pool,
-    const clockid_t * clockid
+    clockid_t clockid
 ) {
-#if defined(__APPLE__)
-    if (clockid != NULL)
-        return NULL;
-#endif
-
     struct zv_timer_mgr_s * timer_mgr = malloc(sizeof(struct zv_timer_mgr_s));
     if (timer_mgr == NULL)
         return NULL;
@@ -342,15 +339,9 @@ zv_timer_mgr_t * zv_timer_mgr_create(
             if (rc == 0)
             {
                 timer_mgr->thread_pool = thread_pool;
+                timer_mgr->clockid = clockid;
                 timer_mgr->timer_by_id = timer_by_id;
                 timer_mgr->timer_by_fire_time = timer_by_fire_time;
-                if (clockid == NULL)
-                    timer_mgr->use_clockid = 0;
-                else
-                {
-                    timer_mgr->use_clockid = 1;
-                    timer_mgr->clockid = *clockid;
-                }
                 timer_mgr->worker = 0;
                 timer_mgr->firing_timer = 0;
                 timer_mgr->waiters = 0;
@@ -363,6 +354,12 @@ zv_timer_mgr_t * zv_timer_mgr_create(
     }
     free(timer_mgr);
     return NULL;
+}
+
+
+clockid_t zv_timer_mgr_get_clock(zv_timer_mgr_t * timer_mgr)
+{
+    return timer_mgr->clockid;
 }
 
 

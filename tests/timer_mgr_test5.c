@@ -299,10 +299,12 @@ static int test5_func(zv_timer_mgr_t * timer_mgr)
     if (rc != 0)
         return rc;
 
+    const clockid_t clockid = zv_timer_mgr_get_clock(timer_mgr);
+
     const size_t count = (sizeof(test.timers) / sizeof(test.timers[0]));
     struct timespec ts_now;
-    clock_gettime(CLOCK_REALTIME, &ts_now);
-    srand(ts_now.tv_sec);
+    clock_gettime(clockid, &ts_now);
+    srand((unsigned int) time(NULL));
 
     // schedule all timers
     for (size_t idx=0; idx<count; idx++)
@@ -376,7 +378,7 @@ static int test5_func(zv_timer_mgr_t * timer_mgr)
                 }
 
                 struct timespec ts;
-                clock_gettime(CLOCK_REALTIME, &ts);
+                clock_gettime(clockid, &ts);
                 ts.tv_nsec -= (ts.tv_nsec % 1000000);
 
                 const int existing = (rnd < ((RAND_MAX)/4));

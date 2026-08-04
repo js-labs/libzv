@@ -13,6 +13,7 @@
 struct timer_s
 {
     sem_t * sem;
+    clockid_t clockid;
     long repeat_interval_ms;
 };
 
@@ -23,7 +24,7 @@ static struct timespec * timer_func(void * arg, struct timespec * repeat_time)
     if (repeat_interval_ms > 0)
     {
         timer->repeat_interval_ms = 0;
-        clock_gettime(CLOCK_REALTIME, repeat_time);
+        clock_gettime(timer->clockid, repeat_time);
         zv_timespec_add_ms(repeat_time, repeat_interval_ms);
         return repeat_time;
     }
@@ -38,6 +39,7 @@ static struct timespec * timer_func(void * arg, struct timespec * repeat_time)
 static void create_timers(
     zv_timer_mgr_t * timer_mgr,
     sem_t * sem,
+    clockid_t clockid,
     int non_repeatable_idx,
     const struct timespec * fire_time
 ) {
@@ -45,6 +47,7 @@ static void create_timers(
     {
         struct timer_s * timer = malloc(sizeof(struct timer_s));
         timer->sem = sem;
+        timer->clockid = clockid;
         timer->repeat_interval_ms = (idx == non_repeatable_idx) ? 0 : 100;
         zv_timer_mgr_at(timer_mgr, fire_time, timer, &timer_func);
     }
@@ -56,14 +59,15 @@ static int test2_func(zv_timer_mgr_t * timer_mgr)
     int rc = sem_init(&sem, 0, 0);
     if (rc == 0)
     {
-        struct timeval tv;
-        gettimeofday(&tv, NULL);
-        struct timespec ts = { tv.tv_sec, tv.tv_usec * 1000 };
+        const clockid_t clockid = zv_timer_mgr_get_clock(timer_mgr);
+
+        struct timespec ts;
+        clock_gettime(clockid, &ts);
 
         for (int idx=0; idx<3; idx++)
         {
             zv_timespec_add_ms(&ts, 200);
-            create_timers(timer_mgr, &sem, idx, &ts);
+            create_timers(timer_mgr, &sem, clockid, idx, &ts);
         }
 
         for (int idx=0; idx<9; idx++)
