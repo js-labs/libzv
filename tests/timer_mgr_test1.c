@@ -11,17 +11,22 @@
 struct timer_s
 {
     sem_t sem;
+    clockid_t clockid;
     int count;
     struct timespec last_time;
     int min_jitter;
     int max_jitter;
 };
 
-static int timer_init(struct timer_s * timer, const struct timespec * last_time)
-{
+static int timer_init(
+    struct timer_s * timer,
+    clockid_t clockid,
+    const struct timespec * last_time
+) {
     int rc = sem_init(&timer->sem, 0, 0);
     if (rc == 0)
     {
+        timer->clockid = clockid;
         timer->count = 0;
         timer->last_time = *last_time;
         timer->min_jitter = INT_MAX;
@@ -38,9 +43,8 @@ static void timer_deinit(struct timer_s * timer)
 static struct timespec * timer_func(void * arg, struct timespec * repeat_time)
 {
     struct timer_s * timer = arg;
-    struct timeval tv;
-    gettimeofday(&tv, NULL);
-    struct timespec ts = { tv.tv_sec, tv.tv_usec * 1000 };
+    struct timespec ts;
+    clock_gettime(timer->clockid, &ts);
     size_t elapsed_ms = (ts.tv_sec - timer->last_time.tv_sec) * 1000;
     elapsed_ms += (ts.tv_nsec / 1000000);
     elapsed_ms -= (timer->last_time.tv_nsec / 1000000);
@@ -62,11 +66,13 @@ static struct timespec * timer_func(void * arg, struct timespec * repeat_time)
 
 static int test1_func(zv_timer_mgr_t * timer_mgr)
 {
+    const clockid_t clockid = zv_timer_mgr_get_clock(timer_mgr);
+
     struct timespec now;
-    clock_gettime(CLOCK_REALTIME, &now);
+    clock_gettime(clockid, &now);
 
     struct timer_s timer;
-    int rc = timer_init(&timer, &now);
+    int rc = timer_init(&timer, clockid, &now);
     if (rc == 0)
     {
         struct timespec fire_time = now;

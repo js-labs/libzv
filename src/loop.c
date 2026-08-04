@@ -152,11 +152,11 @@ int _zv_loop_init(
     pthread_key_t tls_iov;
     if (pthread_key_create(&tls_iov, &free) == 0)
     {
-        const clockid_t * clockid = config->timer_mgr.use_custom_clock
-            ? &config->timer_mgr.clockid
-            : NULL;
+        zv_timer_mgr_t * timer_mgr = zv_timer_mgr_create(
+            thread_pool,
+            config->timer_mgr.clockid
+        );
 
-        zv_timer_mgr_t * timer_mgr = zv_timer_mgr_create(thread_pool, clockid);
         if (timer_mgr)
         {
             size_t iov_max = config->channel.iov_max;

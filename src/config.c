@@ -63,8 +63,11 @@ const struct zv_loop_config_s * zv_loop_config_get_default()
         },
         .timer_mgr =
         {
-            0, // use specific clock
-            0  // clockid
+#if defined(__APPLE__)
+            .clockid = CLOCK_REALTIME
+#else
+            .clockid = CLOCK_MONOTONIC
+#endif
         }
     };
     return &config;

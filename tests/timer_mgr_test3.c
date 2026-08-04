@@ -44,7 +44,7 @@ static int test3_func(zv_timer_mgr_t * timer_mgr)
     if (rc == 0)
     {
         struct timespec ts;
-        clock_gettime(CLOCK_REALTIME, &ts);
+        clock_gettime(zv_timer_mgr_get_clock(timer_mgr), &ts);
 
         int timers[2] = { 1, 2 };
         zv_timespec_add_ms(&ts, 200);

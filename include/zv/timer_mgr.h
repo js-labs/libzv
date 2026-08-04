@@ -29,32 +29,62 @@ typedef struct zv_timer_mgr_s zv_timer_mgr_t;
 /**
  * @brief Creates a timer manager that operates on a specified system clock.
  *
- * On Linux, you can configure a condition variable to use a specific system timer
- * when calling pthread_cond_timedwait(). To enable this functionality, provide
- * the timer identifier via the @p clockid parameter.
- * When using a custom clock, ensure that the @p abstime argument
- * in zv_timer_mgr_at() is set relative to the selected system timer.
+ * The clock is a mandatory attribute of the timer manager: it is the clock the
+ * internal condition variable waits on (pthread_cond_timedwait()), and hence
+ * the clock every absolute time passed to or returned from the manager is
+ * interpreted against.
+ *
+ * @warning All absolute times handed to the manager must be calculated with
+ *          the very same clock, i.e. with
+ *          clock_gettime(zv_timer_mgr_get_clock(timer_mgr), ...). This applies
+ *          to the @p abstime argument of zv_timer_mgr_at() as well as to the
+ *          repeat time returned by a timer callback. Mixing clocks (for
+ *          example computing a fire time with gettimeofday() while the manager
+ *          runs on CLOCK_MONOTONIC) makes timers fire at arbitrary moments,
+ *          usually immediately, because the two time scales differ by the
+ *          system boot time.
+ *
+ * Platform support:
+ *   - Linux: any clock accepted by pthread_condattr_setclock(), which in
+ *     practice means CLOCK_REALTIME or CLOCK_MONOTONIC. CLOCK_MONOTONIC is
+ *     the recommended choice, as it is not affected by wall clock adjustments
+ *     (NTP steps, clock_settime()); note that it does not advance while the
+ *     system is suspended.
+ *   - macOS: only CLOCK_REALTIME is supported, since the platform provides no
+ *     way to select the clock of a condition variable. Any other value makes
+ *     this function fail.
  *
  * @param thread_pool Pointer to an existing zv_thread_pool_t that will be used for internal scheduling.
- * @param clockid Pointer to a clockid_t value specifying the system clock to be used for timer operations.
- *                If NULL, the default system clock is used.
+ * @param clockid System clock to be used for all timer operations.
  *
- * @return Pointer to the created zv_timer_mgr_t instance on success, or NULL on failure.
+ * @return Pointer to the created zv_timer_mgr_t instance on success, or NULL on failure,
+ *         including the case of a clock not supported on the current platform.
  */
 
 ZV_EXPORT zv_timer_mgr_t * zv_timer_mgr_create(
     zv_thread_pool_t * thread_pool,
-    const clockid_t * clockid
+    clockid_t clockid
 );
+
+ZV_EXPORT clockid_t zv_timer_mgr_get_clock(zv_timer_mgr_t * timer_mgr);
 
 /**
  * @brief Schedules a timer to fire at the specified absolute time.
  *
+ * @p abstime must be calculated using the clock the timer manager was created
+ * with, as returned by zv_timer_mgr_get_clock(); see zv_timer_mgr_create().
+ * A time already in the past makes the timer fire as soon as possible.
+ *
  * @param timer_mgr Pointer to the zv_timer_mgr_t instance.
- * @param abstime Absolute time at which the timer should fire.
+ * @param abstime Absolute time at which the timer should fire, expressed on the
+ *                clock returned by zv_timer_mgr_get_clock().
  * @param timer_id Caller-supplied identifier for the timer. Must be unique among
  *                 the currently scheduled timers.
- * @param func Callback invoked when the timer fires.
+ * @param func Callback invoked when the timer fires. To repeat the timer, the
+ *             callback stores the next absolute fire time in the timespec it
+ *             receives and returns that pointer; returning NULL makes the timer
+ *             one-shot. The repeat time must be expressed on the same clock as
+ *             @p abstime.
  *
  * @return 0 on success,
  *         ZV_TIMER_MGR_ERR_ID_IN_USE if a timer with the same @p timer_id is

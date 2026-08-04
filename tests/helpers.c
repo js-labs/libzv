@@ -338,7 +338,12 @@ int run_timer_mgr_test(int (*test_func)(zv_timer_mgr_t*))
     zv_thread_pool_t * thread_pool = zv_thread_pool_create(2);
     if (thread_pool)
     {
-        zv_timer_mgr_t * timer_mgr = zv_timer_mgr_create(thread_pool, NULL);
+#if defined(__APPLE__)
+        clockid_t clockid = CLOCK_REALTIME;
+#else
+        clockid_t clockid = CLOCK_MONOTONIC;
+#endif
+        zv_timer_mgr_t * timer_mgr = zv_timer_mgr_create(thread_pool, clockid);
         if (timer_mgr)
         {
             rc = test_func(timer_mgr);

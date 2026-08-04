@@ -57,7 +57,6 @@ struct zv_loop_config_s
 
     struct
     {
-        int use_custom_clock;
         clockid_t clockid;
     }
     timer_mgr;
