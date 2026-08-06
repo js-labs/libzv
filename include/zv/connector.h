@@ -45,7 +45,11 @@ ZV_EXPORT int zv_connector_create(
 
 ZV_EXPORT zv_loop_t * zv_connector_get_loop(zv_connector_t * connector);
 ZV_EXPORT void * zv_connector_get_extra_data(zv_connector_t * connector);
-ZV_EXPORT const struct sockaddr * zv_connector_get_addr(zv_connector_t * connector, socklen_t * addrlen);
+
+ZV_EXPORT const struct sockaddr * zv_connector_get_addr(
+    zv_connector_t * connector,
+    socklen_t * addrlen
+);
 
 enum zv_log_level;
 ZV_EXPORT void zv_connector_set_log_level(enum zv_log_level level);

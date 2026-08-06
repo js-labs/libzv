@@ -36,9 +36,7 @@ ZV_EXPORT zv_thread_pool_t * zv_loop_get_thread_pool(zv_loop_t * loop);
 ZV_EXPORT zv_timer_mgr_t * zv_loop_get_timer_mgr(zv_loop_t * loop);
 
 ZV_EXPORT void zv_loop_run(zv_loop_t * loop);
-
 ZV_EXPORT void zv_loop_stop(zv_loop_t * loop);
-
 ZV_EXPORT void zv_loop_destroy(zv_loop_t * loop);
 
 enum zv_log_level;

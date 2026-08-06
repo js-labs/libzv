@@ -15,8 +15,10 @@ set(LIB_SRCS
     include/zv/channel.h
     include/zv/config.h
     include/zv/connector.h
+    include/zv/dns_resolver.h
     include/zv/err.h
     include/zv/export.h
+    include/zv/he_connector.h
     include/zv/log.h
     include/zv/loop.h
     include/zv/os_socket.h
@@ -35,6 +37,8 @@ set(LIB_SRCS
     src/channel_out_queue.h
     src/config.c
     src/connector.c
+    src/dns_resolver.c
+    src/he_connector.c
     src/log.c
     src/loop.c
     src/loop_int.h
@@ -113,6 +117,8 @@ if(BUILD_TESTS)
         tests/connector1.c
         tests/connector2.c
         tests/connector3.c
+        tests/dns_resolver1.c
+        tests/he_connector1.c
         tests/helpers.h
         tests/helpers.c
         tests/ipv6.c
