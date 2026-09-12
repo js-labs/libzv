@@ -87,7 +87,6 @@ int main(int argc, const char * argv[])
 #define RUN_TEST(name) \
     run_test(&failed_tests, #name, name); tests++
 
-    /*
     RUN_TEST(acceptor1);
     RUN_TEST(buffer_cache);
     RUN_TEST(channel_close1);
@@ -97,11 +96,9 @@ int main(int argc, const char * argv[])
     RUN_TEST(channel_send_peer_close);
     RUN_TEST(connector1);
     RUN_TEST(connector2);
-    */
     //RUN_TEST(connector3);
-    //RUN_TEST(dns_resolver1);
+    RUN_TEST(dns_resolver1);
     RUN_TEST(he_connector1);
-    /*
     RUN_TEST(ipv6);
     RUN_TEST(stream_defragger1);
     RUN_TEST(timer_mgr_test1);
@@ -109,7 +106,6 @@ int main(int argc, const char * argv[])
     RUN_TEST(timer_mgr_test3);
     RUN_TEST(timer_mgr_test4);
     RUN_TEST(timer_mgr_test5);
-    */
 
 #undef RUN_TEST
 
