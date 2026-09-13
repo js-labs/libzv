@@ -23,10 +23,11 @@
 #include "zv/thread_pool.h"
 #include "misc.h"
 
-#if defined(_WIN32)
-#include <ws2tcpip.h>
+#if !defined(_WIN32)
+#include <string.h>
 #endif
 
+// to be used for tests
 void * _zv_dns_resolver_addrs = NULL;
 
 

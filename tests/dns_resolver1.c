@@ -23,7 +23,8 @@
 
 #if defined(_WIN32)
 #include <WinSock2.h>
-#include <ws2tcpip.h>
+#elif defined(__linux__)
+#include <arpa/inet.h>
 #endif
 
 struct test_s
@@ -38,8 +39,8 @@ static void after_resolve(const struct addrinfo * result, void * extra_data)
     const struct addrinfo * addrinfo = result;
     while (addrinfo != NULL)
     {
-        char buffer[64];
-        const char* str = NULL;
+        char buffer[INET6_ADDRSTRLEN + 6];
+        const char * str = NULL;
 
         if (addrinfo->ai_family == AF_INET)
         {

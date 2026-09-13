@@ -22,10 +22,16 @@
 
 #include "zv/export.h"
 
+#if defined(_WIN32)
+#include <ws2tcpip.h>
+#elif defined(__linux__)
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netdb.h>
+#endif
+
 typedef struct zv_thread_pool_s zv_thread_pool_t;
 typedef struct zv_dns_resolver_s zv_dns_resolver_t;
-
-struct addrinfo;
 
 ZV_EXPORT int zv_dns_resolver_create(
     zv_thread_pool_t * thread_pool,

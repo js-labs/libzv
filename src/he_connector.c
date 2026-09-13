@@ -25,6 +25,7 @@
 #include "zv/loop.h"
 #include "zv/os_socket.h"
 #include "zv/os_thread.h"
+#include "zv/os_time.h"
 #include "zv/thread_pool.h"
 #include "zv/timer_mgr.h"
 #include "misc.h"
@@ -32,8 +33,8 @@
 #include <inttypes.h>
 #include <stdlib.h>
 
-#if defined(_WIN32)
-#include <ws2ipdef.h>
+#if !defined(_WIN32)
+#include <string.h>
 #endif
 
 #if defined(__INTELLISENSE__)
@@ -371,7 +372,10 @@ static struct timespec * _zv_he_connector_timer(
                     (he_connector->next_idx < he_connector->count))
                 {
                     pthread_mutex_unlock(&he_connector->mutex);
-                    clock_gettime(CLOCK_REALTIME, ts);
+
+                    zv_timer_mgr_t * timer_mgr = zv_loop_get_timer_mgr(he_connector->loop);
+                    clockid_t clock_id = zv_timer_mgr_get_clock(timer_mgr);
+                    clock_gettime(clock_id, ts);
                     zv_timespec_add_ms(ts, CONNECT_INTERVAL_MS);
                     return ts;
                 }
@@ -514,12 +518,15 @@ static void _zv_he_connector_after_resolve(
     {
         zv_he_connector_retain(he_connector);
 
+        zv_timer_mgr_t * timer_mgr = zv_loop_get_timer_mgr(he_connector->loop);
+        clockid_t clock_id = zv_timer_mgr_get_clock(timer_mgr);
+
         struct timespec ts;
-        clock_gettime(CLOCK_REALTIME, &ts);
+        clock_gettime(clock_id, &ts);
         zv_timespec_add_ms(&ts, CONNECT_INTERVAL_MS);
 
         int rc = zv_timer_mgr_at(
-            zv_loop_get_timer_mgr(he_connector->loop),
+            timer_mgr,
             &ts,
             he_connector,
             &_zv_he_connector_timer

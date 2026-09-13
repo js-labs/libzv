@@ -357,26 +357,13 @@ static void _zv_loop_poll_run(struct zv_loop_s * loop)
         {
             if (zv_log_level_enabled(&_zv_loop_log, zv_log_level_debug))
             {
-                if ((head->event_type == zv_event_type_read) && (head->opcode == zv_event_opcode_resume))
-                {
-                    ZV_LOG_TRACE(
-                        _zv_loop_log,
-                        "sockfd=%" PRIsocket " event_type=%s opcode=%s",
-                        head->sockfd,
-                        zv_event_type_get_name(head->event_type),
-                        zv_event_opcode_get_name(head->opcode)
-                    );
-                }
-                else
-                {
-                    ZV_LOG_TRACE(
-                        _zv_loop_log,
-                        "sockfd=%" PRIsocket " event_type=%s opcode=%s",
-                        head->sockfd,
-                        zv_event_type_get_name(head->event_type),
-                        zv_event_opcode_get_name(head->opcode)
-                    );
-                }
+                ZV_LOG_TRACE(
+                    _zv_loop_log,
+                    "sockfd=%" PRIsocket " event_type=%s opcode=%s",
+                    head->sockfd,
+                    zv_event_type_get_name(head->event_type),
+                    zv_event_opcode_get_name(head->opcode)
+                );
             }
 
             struct zv_event_handler_s * next = _zv_loop_pop(loop, head);
