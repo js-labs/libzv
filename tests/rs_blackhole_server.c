@@ -46,7 +46,7 @@ rs_blackhole_server_t * rs_blackhole_server_create(in_port_t * port)
         &_rs_blackhole_server_close_handler
     );
     if (server != NULL)
-        printf("TCP blackhole server (RS) started on port %hu\n", *port);
+        printf("TCP blackhole server started on port %hu\n", *port);
     return (rs_blackhole_server_t*) server;
 }
 

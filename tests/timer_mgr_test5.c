@@ -304,7 +304,7 @@ static int test5_func(zv_timer_mgr_t * timer_mgr)
     const size_t count = (sizeof(test.timers) / sizeof(test.timers[0]));
     struct timespec ts_now;
     clock_gettime(clockid, &ts_now);
-    srand((unsigned int) time(NULL));
+    srand((unsigned int) ts_now.tv_sec);
 
     // schedule all timers
     for (size_t idx=0; idx<count; idx++)

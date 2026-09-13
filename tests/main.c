@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "zv/acceptor.h"
+#include "zv/connector.h"
+#include "zv/he_connector.h"
 #include "zv/channel.h"
 #include "zv/log.h"
 #include "zv/loop.h"
@@ -16,6 +18,8 @@ int channel_send_peer_close();
 int connector1();
 int connector2();
 int connector3();
+int dns_resolver1();
+int he_connector1();
 int ipv6();
 int stream_defragger1();
 int timer_mgr_test1();
@@ -73,12 +77,12 @@ int main(int argc, const char * argv[])
     int failed_tests = 0;
     int tests = 0;
 
-    /*
     zv_log_add_file_backend(stdout);
     zv_acceptor_set_log_level(zv_log_level_debug);
+    zv_connector_set_log_level(zv_log_level_debug);
     zv_channel_set_log_level(zv_log_level_debug);
+    zv_he_connector_set_log_level(zv_log_level_debug);
     zv_loop_set_log_level(zv_log_level_debug);
-    */
 
 #define RUN_TEST(name) \
     run_test(&failed_tests, #name, name); tests++
@@ -93,6 +97,8 @@ int main(int argc, const char * argv[])
     RUN_TEST(connector1);
     RUN_TEST(connector2);
     //RUN_TEST(connector3);
+    RUN_TEST(dns_resolver1);
+    RUN_TEST(he_connector1);
     RUN_TEST(ipv6);
     RUN_TEST(stream_defragger1);
     RUN_TEST(timer_mgr_test1);
