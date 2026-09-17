@@ -44,7 +44,28 @@ ZV_EXPORT void * zv_he_connector_get_extra_data(zv_he_connector_t * he_connector
 ZV_EXPORT zv_he_connector_t * zv_he_connector_retain(zv_he_connector_t * he_connector);
 ZV_EXPORT void zv_he_connector_release(zv_he_connector_t * he_connector);
 
-ZV_EXPORT int zv_he_connector_stop(zv_he_connector_t * he_connector);
+/*
+ * Requests the connector to stop. Does not block.
+ * <after_stop> (may be NULL) is invoked once the connector reaches its final
+ * state. The after_connect/after_fail callback can still be invoked after
+ * zv_he_connector_stop() returns, but never after <after_stop>:
+ * a callback already being invoked at the moment of the call runs to
+ * completion, <after_stop> is invoked right after it returns, from the same
+ * thread, and no callback follows.
+ * The connector may already be in the final state, <after_stop> is still
+ * called in that case, but from a thread pool worker thread, never from
+ * within zv_he_connector_stop() itself.
+ * More than one stop request can be pending at a time, each one gets
+ * its own <after_stop> invocation.
+ * The connector must be released separately, zv_he_connector_stop() does not
+ * consume the caller reference.
+ * Returns 0 on success, otherwise an error code.
+ */
+ZV_EXPORT int zv_he_connector_stop(
+    zv_he_connector_t * he_connector,
+    void (*after_stop)(zv_he_connector_t*, /*after_stop_arg*/void*),
+    void * after_stop_arg
+);
 
 enum zv_log_level;
 ZV_EXPORT void zv_he_connector_set_log_level(enum zv_log_level level);

@@ -73,6 +73,20 @@ struct connect_info_s
     sockaddr;
 };
 
+struct zv_he_connector_after_stop_s
+{
+    struct zv_he_connector_after_stop_s * next;
+    void (*func)(zv_he_connector_t*, void*);
+    void * arg;
+};
+
+struct zv_he_connector_after_stop_task_s
+{
+    struct zv_he_connector_after_stop_s after_stop;
+    struct zv_thread_pool_task_s task;
+    struct zv_he_connector_s * he_connector;
+};
+
 struct zv_he_connector_s
 {
     _Atomic size_t retain_count;
@@ -85,7 +99,6 @@ struct zv_he_connector_s
     void * extra_data;
 
     pthread_mutex_t mutex;
-    pthread_cond_t cond;
     enum zv_he_connector_state_e state;
     char stop;
     char timer;
@@ -93,7 +106,34 @@ struct zv_he_connector_s
     size_t count;
     size_t next_idx;
     struct connect_info_s * connect_info;
+    struct zv_he_connector_after_stop_s * after_stop;
 };
+
+
+static void _zv_he_connector_call_after_stop(
+    struct zv_he_connector_s * he_connector,
+    struct zv_he_connector_after_stop_s * after_stop
+) {
+    while (after_stop != NULL)
+    {
+        struct zv_he_connector_after_stop_s * next = after_stop->next;
+        void (*func)(zv_he_connector_t*, void*) = after_stop->func;
+        void * arg = after_stop->arg;
+        free(after_stop);
+        func(he_connector, arg);
+        after_stop = next;
+    }
+}
+
+
+static struct zv_he_connector_after_stop_s * _zv_he_connector_set_done_locked(
+    struct zv_he_connector_s * he_connector
+) {
+    he_connector->state = zv_he_connector_state_done;
+    struct zv_he_connector_after_stop_s * after_stop = he_connector->after_stop;
+    he_connector->after_stop = NULL;
+    return after_stop;
+}
 
 
 static void _zv_he_connector_after_connect(
@@ -115,15 +155,13 @@ static void _zv_he_connector_after_connect(
         timer_mgr = NULL;
 
     unsigned char pending_connectors;
+    struct zv_he_connector_after_stop_s * after_stop = NULL;
 
     if (he_connector->stop)
     {
         pending_connectors = --he_connector->pending_connectors;
         if (he_connector->state == zv_he_connector_state_connecting)
-        {
-            he_connector->state = zv_he_connector_state_done;
-            pthread_cond_broadcast(&he_connector->cond);
-        }
+            after_stop = _zv_he_connector_set_done_locked(he_connector);
         pthread_mutex_unlock(&he_connector->mutex);
         zv_socket_close(sockfd);
     }
@@ -145,9 +183,7 @@ static void _zv_he_connector_after_connect(
 
         pthread_mutex_lock(&he_connector->mutex);
         pending_connectors = --he_connector->pending_connectors;
-        he_connector->state = zv_he_connector_state_done;
-        if (he_connector->stop)
-            pthread_cond_broadcast(&he_connector->cond);
+        after_stop = _zv_he_connector_set_done_locked(he_connector);
         pthread_mutex_unlock(&he_connector->mutex);
     }
     else
@@ -165,6 +201,8 @@ static void _zv_he_connector_after_connect(
         if (rc == 0)
             zv_he_connector_release(he_connector);
     }
+
+    _zv_he_connector_call_after_stop(he_connector, after_stop);
 
     if (pending_connectors == 0)
         zv_he_connector_release(he_connector);
@@ -253,9 +291,6 @@ static void _zv_he_connector_fail_locked(
     he_connector->after_fail(he_connector, errcode);
 
     pthread_mutex_lock(&he_connector->mutex);
-    he_connector->state = zv_he_connector_state_done;
-    if (he_connector->stop)
-        pthread_cond_broadcast(&he_connector->cond);
 }
 
 
@@ -279,11 +314,11 @@ static void _zv_he_connector_after_connect_fail(
     pthread_mutex_lock(&he_connector->mutex);
     if (he_connector->stop)
     {
+        struct zv_he_connector_after_stop_s * after_stop;
         if (he_connector->state == zv_he_connector_state_connecting)
-        {
-            he_connector->state = zv_he_connector_state_done;
-            pthread_cond_broadcast(&he_connector->cond);
-        }
+            after_stop = _zv_he_connector_set_done_locked(he_connector);
+        else
+            after_stop = NULL;
 
         zv_timer_mgr_t * timer_mgr;
         if (he_connector->timer)
@@ -304,6 +339,8 @@ static void _zv_he_connector_after_connect_fail(
             if (rc == 0)
                 zv_he_connector_release(he_connector);
         }
+
+        _zv_he_connector_call_after_stop(he_connector, after_stop);
 
         if (pending_connectors == 0)
             zv_he_connector_release(he_connector);
@@ -326,9 +363,16 @@ static void _zv_he_connector_after_connect_fail(
         size_t pending_connectors = --he_connector->pending_connectors;
         if (pending_connectors == 0)
         {
+            struct zv_he_connector_after_stop_s * after_stop;
             if (he_connector->state == zv_he_connector_state_connecting)
-                _zv_he_connector_fail_locked(he_connector, 0);
+            {
+                _zv_he_connector_fail_locked(he_connector, sockerr);
+                after_stop = _zv_he_connector_set_done_locked(he_connector);
+            }
+            else
+                after_stop = NULL;
             pthread_mutex_unlock(&he_connector->mutex);
+            _zv_he_connector_call_after_stop(he_connector, after_stop);
             zv_he_connector_release(he_connector);
         }
         else
@@ -342,6 +386,7 @@ static struct timespec * _zv_he_connector_timer(
     struct timespec * ts
 ) {
     struct zv_he_connector_s * he_connector = timer;
+    struct zv_he_connector_after_stop_s * after_stop = NULL;
 
     pthread_mutex_lock(&he_connector->mutex);
 
@@ -350,14 +395,11 @@ static struct timespec * _zv_he_connector_timer(
         ZV_LOG_ERROR(
             _zv_he_connector_log,
             "0x%" PRIxPTR ": timer, stop",
-            (intptr_t)he_connector
+            (intptr_t) he_connector
         );
 
         if (he_connector->state == zv_he_connector_state_connecting)
-        {
-            he_connector->state = zv_he_connector_state_done;
-            pthread_cond_broadcast(&he_connector->cond);
-        }
+            after_stop = _zv_he_connector_set_done_locked(he_connector);
     }
     else if (he_connector->state == zv_he_connector_state_connecting)
     {
@@ -388,6 +430,9 @@ static struct timespec * _zv_he_connector_timer(
 
     he_connector->timer = 0;
     pthread_mutex_unlock(&he_connector->mutex);
+
+    _zv_he_connector_call_after_stop(he_connector, after_stop);
+
     zv_he_connector_release(he_connector);
     return NULL;
 }
@@ -422,12 +467,12 @@ static void _zv_he_connector_after_resolve(
     if (total_count == 0)
     {
         pthread_mutex_lock(&he_connector->mutex);
-        he_connector->state = zv_he_connector_state_done;
-        if (he_connector->stop)
-            pthread_cond_broadcast(&he_connector->cond);
-        else
+        if (!he_connector->stop)
             _zv_he_connector_fail_locked(he_connector, 0);
+        struct zv_he_connector_after_stop_s * after_stop;
+        after_stop = _zv_he_connector_set_done_locked(he_connector);
         pthread_mutex_unlock(&he_connector->mutex);
+        _zv_he_connector_call_after_stop(he_connector, after_stop);
         zv_he_connector_release(he_connector);
         return;
     }
@@ -437,12 +482,12 @@ static void _zv_he_connector_after_resolve(
     if (buffer == NULL)
     {
         pthread_mutex_lock(&he_connector->mutex);
-        he_connector->state = zv_he_connector_state_done;
-        if (he_connector->stop)
-            pthread_cond_broadcast(&he_connector->cond);
-        else
-            _zv_he_connector_fail_locked(he_connector, ZV_ERR_NOMEM);
+        if (!he_connector->stop)
+            _zv_he_connector_fail_locked(he_connector, 0);
+        struct zv_he_connector_after_stop_s * after_stop;
+        after_stop = _zv_he_connector_set_done_locked(he_connector);
         pthread_mutex_unlock(&he_connector->mutex);
+        _zv_he_connector_call_after_stop(he_connector, after_stop);
         zv_he_connector_release(he_connector);
         return;
     }
@@ -487,9 +532,10 @@ static void _zv_he_connector_after_resolve(
     pthread_mutex_lock(&he_connector->mutex);
     if (he_connector->stop)
     {
-        he_connector->state = zv_he_connector_state_done;
-        pthread_cond_broadcast(&he_connector->cond);
+        struct zv_he_connector_after_stop_s * after_stop;
+        after_stop = _zv_he_connector_set_done_locked(he_connector);
         pthread_mutex_unlock(&he_connector->mutex);
+        _zv_he_connector_call_after_stop(he_connector, after_stop);
         zv_he_connector_release(he_connector);
         free(buffer);
         return;
@@ -505,9 +551,12 @@ static void _zv_he_connector_after_resolve(
     {
         // zv_connector_create() failed,
         // most probably does not make sense to try any other address
-        he_connector->state = zv_he_connector_state_done;
-        _zv_he_connector_fail_locked(he_connector, rc);
+        if (!he_connector->stop)
+            _zv_he_connector_fail_locked(he_connector, 0);
+        struct zv_he_connector_after_stop_s * after_stop;
+        after_stop = _zv_he_connector_set_done_locked(he_connector);
         pthread_mutex_unlock(&he_connector->mutex);
+        _zv_he_connector_call_after_stop(he_connector, after_stop);
         zv_he_connector_release(he_connector);
         return;
     }
@@ -555,14 +604,12 @@ static void _zv_he_connector_after_resolve_fail(void * extra_data, int errcode)
 {
     struct zv_he_connector_s * he_connector = extra_data;
     pthread_mutex_lock(&he_connector->mutex);
-    if (he_connector->stop)
-    {
-        he_connector->state = zv_he_connector_state_done;
-        pthread_cond_broadcast(&he_connector->cond);
-    }
-    else
-        _zv_he_connector_fail_locked(he_connector, 0);
+    if (!he_connector->stop)
+        _zv_he_connector_fail_locked(he_connector, errcode);
+    struct zv_he_connector_after_stop_s * after_stop;
+    after_stop = _zv_he_connector_set_done_locked(he_connector);
     pthread_mutex_unlock(&he_connector->mutex);
+    _zv_he_connector_call_after_stop(he_connector, after_stop);
     zv_he_connector_release(he_connector);
 }
 
@@ -615,41 +662,37 @@ zv_he_connector_t * zv_he_connector_create(
     int rc = pthread_mutex_init(&he_connector->mutex, NULL);
     if (rc == 0)
     {
-        rc = pthread_cond_init(&he_connector->cond, NULL);
+        he_connector->state = zv_he_connector_state_resolving;
+        he_connector->stop = 0;
+        he_connector->timer = 0;
+        he_connector->pending_connectors = 0;
+        he_connector->count = 0;
+        he_connector->next_idx = 0;
+        he_connector->connect_info = NULL;
+        he_connector->after_stop = NULL;
+
+        ZV_LOG_DEBUG(
+            _zv_he_connector_log,
+            "0x%" PRIxPTR ": host='%s' service='%s'",
+            (intptr_t)he_connector,
+            host,
+            service
+        );
+
+        rc = zv_dns_resolver_create(
+            zv_loop_get_thread_pool(loop),
+            host,
+            service,
+            sock_type,
+            &_zv_he_connector_after_resolve,
+            &_zv_he_connector_after_resolve_fail,
+            he_connector
+        );
+
         if (rc == 0)
-        {
-            he_connector->state = zv_he_connector_state_resolving;
-            he_connector->stop = 0;
-            he_connector->timer = 0;
-            he_connector->pending_connectors = 0;
-            he_connector->count = 0;
-            he_connector->next_idx = 0;
-            he_connector->connect_info = NULL;
+            return he_connector;
 
-            ZV_LOG_DEBUG(
-                _zv_he_connector_log,
-                "0x%" PRIxPTR ": host='%s' service='%s'",
-                (intptr_t)he_connector,
-                host,
-                service
-            );
-
-            rc = zv_dns_resolver_create(
-                zv_loop_get_thread_pool(loop),
-                host,
-                service,
-                sock_type,
-                &_zv_he_connector_after_resolve,
-                &_zv_he_connector_after_resolve_fail,
-                he_connector
-            );
-
-            if (rc == 0)
-                return he_connector;
-
-            last_error = errno;
-            pthread_cond_destroy(&he_connector->cond);
-        }
+        last_error = errno;
         pthread_mutex_destroy(&he_connector->mutex);
     }
 
@@ -683,23 +726,82 @@ void * zv_he_connector_get_extra_data(zv_he_connector_t * he_connector)
 }
 
 
-int zv_he_connector_stop(
-    zv_he_connector_t * he_connector
-) {
+static void _zv_he_connector_after_stop_task(struct zv_thread_pool_task_s * task)
+{
+    struct zv_he_connector_after_stop_task_s * after_stop_task;
+    after_stop_task = _ZV_CONTAINER_OF(
+        task,
+        struct zv_he_connector_after_stop_task_s,
+        task
+    );
+    struct zv_he_connector_s * he_connector = after_stop_task->he_connector;
     pthread_mutex_lock(&he_connector->mutex);
-    if (he_connector->state == zv_he_connector_state_done)
+    struct zv_he_connector_after_stop_s * after_stop = he_connector->after_stop;
+    he_connector->after_stop = NULL;
+    pthread_mutex_unlock(&he_connector->mutex);
+    _zv_he_connector_call_after_stop(he_connector, after_stop);
+    zv_he_connector_release(he_connector);
+}
+
+
+int zv_he_connector_stop(
+    zv_he_connector_t * he_connector,
+    void (*after_stop_func)(zv_he_connector_t*, void*),
+    void * after_stop_arg
+) {
+    if (after_stop_func == NULL)
     {
-        pthread_mutex_unlock(&he_connector->mutex);
-        return -1;
-    }
-    else
-    {
+        pthread_mutex_lock(&he_connector->mutex);
         he_connector->stop = 1;
-        while (he_connector->state != zv_he_connector_state_done)
-            pthread_cond_wait(&he_connector->cond, &he_connector->mutex);
         pthread_mutex_unlock(&he_connector->mutex);
         return 0;
     }
+
+    struct zv_he_connector_after_stop_task_s * after_stop_task;
+    struct zv_he_connector_after_stop_s * after_stop;
+
+    pthread_mutex_lock(&he_connector->mutex);
+    he_connector->stop = 1;
+
+    if ((he_connector->state == zv_he_connector_state_done)
+        && (he_connector->after_stop == NULL))
+    {
+        after_stop_task = malloc(sizeof(struct zv_he_connector_after_stop_task_s));
+        if (after_stop_task == NULL)
+        {
+            pthread_mutex_unlock(&he_connector->mutex);
+            return ZV_ERR_NOMEM;
+        }
+        zv_thread_pool_task_init(&after_stop_task->task, &_zv_he_connector_after_stop_task);
+        after_stop_task->he_connector = he_connector;
+        after_stop = &after_stop_task->after_stop;
+    }
+    else
+    {
+        after_stop_task = NULL;
+        after_stop = malloc(sizeof(struct zv_he_connector_after_stop_s));
+        if (after_stop == NULL)
+        {
+            pthread_mutex_unlock(&he_connector->mutex);
+            return ZV_ERR_NOMEM;
+        }
+    }
+
+    after_stop->next = he_connector->after_stop;
+    after_stop->func = after_stop_func;
+    after_stop->arg = after_stop_arg;
+    he_connector->after_stop = after_stop;
+
+    pthread_mutex_unlock(&he_connector->mutex);
+
+    if (after_stop_task != NULL)
+    {
+        zv_he_connector_retain(he_connector);
+        zv_thread_pool_t * thread_pool = zv_loop_get_thread_pool(he_connector->loop);
+        zv_thread_pool_dispatch(thread_pool, &after_stop_task->task);
+    }
+
+    return 0;
 }
 
 
@@ -720,12 +822,12 @@ void zv_he_connector_release(
         ZV_LOG_DEBUG(
             _zv_he_connector_log,
             "0x%" PRIxPTR ": deinit",
-            (intptr_t)he_connector
+            (intptr_t) he_connector
         );
 
         assert(he_connector->state == zv_he_connector_state_done);
+        assert(he_connector->after_stop == NULL);
         free(he_connector->connect_info);
-        pthread_cond_destroy(&he_connector->cond);
         pthread_mutex_destroy(&he_connector->mutex);
         free(he_connector);
     }
