@@ -438,7 +438,7 @@ static struct timespec * _zv_he_connector_timer(
 }
 
 
-static void _zv_he_connector_after_resolve(
+static void _zv_he_connector_resolve_cb(
     const struct addrinfo * result,
     void * extra_data
 ) {
@@ -600,7 +600,7 @@ static void _zv_he_connector_after_resolve(
 }
 
 
-static void _zv_he_connector_after_resolve_fail(void * extra_data, int errcode)
+static void _zv_he_connector_resolve_error_cb(void * extra_data, int errcode)
 {
     struct zv_he_connector_s * he_connector = extra_data;
     pthread_mutex_lock(&he_connector->mutex);
@@ -684,8 +684,8 @@ zv_he_connector_t * zv_he_connector_create(
             host,
             service,
             sock_type,
-            &_zv_he_connector_after_resolve,
-            &_zv_he_connector_after_resolve_fail,
+            &_zv_he_connector_resolve_cb,
+            &_zv_he_connector_resolve_error_cb,
             he_connector
         );
 
