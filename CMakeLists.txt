@@ -6,7 +6,19 @@ option(BUILD_TESTS "Build tests" ON)
 option(ASAN "Enable AddressSanitizer" OFF)
 option(CHANNEL_SEND_REF "Enable channel send ref" OFF)
 
-include_directories(include)
+include(FetchContent)
+
+FetchContent_Declare(
+    buffer_set
+    GIT_REPOSITORY https://github.com/js-labs/buffer_set.git
+    GIT_TAG 4e7758ef553c2ba4281c61a89282b4c628662aaf
+)
+
+# Disable tests for the buffer set library
+set(_BUILD_TESTS ${BUILD_TESTS})
+set(BUILD_TESTS OFF)
+FetchContent_MakeAvailable(buffer_set)
+set(BUILD_TESTS ${_BUILD_TESTS})
 
 set(LIB_SRCS
     include/zv/acceptor.h
@@ -60,21 +72,13 @@ else()
     list(APPEND LIB_SRCS src/channel_out_queue.c)
 endif()
 
-# Disable tests for the buffer set library
-set(_BUILD_TESTS ${BUILD_TESTS})
-set(BUILD_TESTS OFF)
-add_subdirectory(thd/buffer_set)
-set(BUILD_TESTS ${_BUILD_TESTS})
-
-set(LIBRARIES buffer_set)
-
 add_library(zv SHARED ${LIB_SRCS})
+target_include_directories(zv PUBLIC include)
 target_compile_definitions(zv PRIVATE BUILDING_ZV_DLL)
-target_include_directories(zv PRIVATE thd/buffer_set/include)
-target_link_libraries(zv buffer_set)
 if(CHANNEL_SEND_REF)
     target_compile_definitions(zv PUBLIC ZV_CHANNEL_SEND_REF)
 endif()
+target_link_libraries(zv buffer_set)
 
 if(ASAN)
     if(CMAKE_C_COMPILER_ID MATCHES "AppleClang|GNU|Clang")
