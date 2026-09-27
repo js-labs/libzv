@@ -304,7 +304,7 @@ zv_log_backend_t * zv_log_add_backend(
     void * thunk
 ) {
     struct zv_log_backend_s * backend = malloc(sizeof(struct zv_log_backend_s));
-    if (backend)
+    if (backend != NULL)
     {
         backend->next = NULL;
         backend->func = func;
@@ -312,7 +312,7 @@ zv_log_backend_t * zv_log_add_backend(
         backend->thunk = thunk;
 
         struct zv_log_event_s * log_event = malloc(sizeof(struct zv_log_event_s));
-        if (log_event)
+        if (log_event != NULL)
         {
             log_event->next = NULL;
             log_event->type = zv_log_event_type_add_backend;

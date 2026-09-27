@@ -18,6 +18,7 @@
  */
 
 #include "zv/acceptor.h"
+#include "zv/err.h"
 #include "zv/log.h"
 #include "zv/loop.h"
 #include "zv/thread_pool.h"
@@ -243,26 +244,24 @@ int zv_acceptor_stop(
     void * after_stop_arg
 ) {
     struct zv_acceptor_stop_s * acceptor_stop = malloc(sizeof(struct zv_acceptor_stop_s));
-    if (acceptor_stop)
-    {
-        acceptor_stop->acceptor = acceptor;
+    if (acceptor_stop == NULL)
+        return ZV_ERR_NOMEM;
 
-        _zv_event_handler_init(
-            &acceptor_stop->handler,
-            acceptor->handler.sockfd,
-            zv_event_type_accept,
-            zv_event_opcode_remove,
-            &_zv_acceptor_remove_task
-        );
+    acceptor_stop->acceptor = acceptor;
 
-        acceptor_stop->after_stop = after_stop;
-        acceptor_stop->after_stop_arg = after_stop_arg;
+    _zv_event_handler_init(
+        &acceptor_stop->handler,
+        acceptor->handler.sockfd,
+        zv_event_type_accept,
+        zv_event_opcode_remove,
+        &_zv_acceptor_remove_task
+    );
 
-        _zv_loop_add_handler(acceptor->loop, &acceptor_stop->handler);
-        return 0;
-    }
-    else
-        return -1;
+    acceptor_stop->after_stop = after_stop;
+    acceptor_stop->after_stop_arg = after_stop_arg;
+
+    _zv_loop_add_handler(acceptor->loop, &acceptor_stop->handler);
+    return 0;
 }
 
 

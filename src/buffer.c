@@ -91,9 +91,10 @@ zv_buffer_cache_t * zv_buffer_cache_create(
 }
 
 
-void zv_buffer_cache_retain(zv_buffer_cache_t * buffer_cache)
+zv_buffer_cache_t * zv_buffer_cache_retain(zv_buffer_cache_t * buffer_cache)
 {
     atomic_fetch_add(&buffer_cache->retain_count, 1);
+    return buffer_cache;
 }
 
 

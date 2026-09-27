@@ -23,6 +23,10 @@
 #include "zv/export.h"
 #include "zv/os_socket.h"
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 typedef struct zv_loop_s zv_loop_t;
 typedef struct zv_buffer_cache_s zv_buffer_cache_t;
 typedef struct zv_channel_s zv_channel_t;
@@ -69,5 +73,9 @@ ZV_EXPORT int zv_channel_send_ref(
 
 enum zv_log_level;
 ZV_EXPORT void zv_channel_set_log_level(enum zv_log_level level);
+
+#if defined(__cplusplus)
+}
+#endif
 
 #endif /* !defined(ZV_CHANNEL_H) */
