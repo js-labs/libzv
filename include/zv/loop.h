@@ -23,6 +23,10 @@
 #include "zv/export.h"
 #include <stddef.h>
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 typedef struct zv_loop_s zv_loop_t;
 typedef struct zv_thread_pool_s zv_thread_pool_t;
 typedef struct zv_timer_mgr_s zv_timer_mgr_t;
@@ -41,5 +45,9 @@ ZV_EXPORT void zv_loop_destroy(zv_loop_t * loop);
 
 enum zv_log_level;
 ZV_EXPORT void zv_loop_set_log_level(enum zv_log_level level);
+
+#if defined(__cplusplus)
+}
+#endif
 
 #endif /* !defined(ZV_LOOP_H) */

@@ -24,6 +24,10 @@
 #include <stdio.h>
 #include "zv/export.h"
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 enum zv_log_level
 {
     zv_log_level_error = 1,
@@ -89,5 +93,9 @@ static inline int zv_log_level_enabled(
 #define ZV_LOG_INFO(layer, ...) ZV_LOG(layer, zv_log_level_info, __VA_ARGS__)
 #define ZV_LOG_DEBUG(layer, ...) ZV_LOG(layer, zv_log_level_debug, __VA_ARGS__)
 #define ZV_LOG_TRACE(layer, ...) ZV_LOG(layer, zv_log_level_trace, __VA_ARGS__)
+
+#if defined(__cplusplus)
+}
+#endif
 
 #endif /* !defined(ZV_LOG_H) */

@@ -214,7 +214,7 @@ void zv_loop_run(zv_loop_t * loop)
 }
 
 
-int _zv_loop_add_handler(zv_loop_t * loop, struct zv_event_handler_s * handler)
+int _zv_loop_add_handler(struct zv_loop_s * loop, struct zv_event_handler_s * handler)
 {
     assert(handler->next == NULL);
     assert((handler->opcode == zv_event_opcode_add) || (handler->opcode == zv_event_opcode_remove));
@@ -249,7 +249,7 @@ int _zv_loop_add_handler(zv_loop_t * loop, struct zv_event_handler_s * handler)
 }
 
 
-void _zv_loop_resume_handler(zv_loop_t * loop, struct zv_event_handler_s * handler)
+void _zv_loop_resume_handler(struct zv_loop_s * loop, struct zv_event_handler_s * handler)
 {
     assert(handler->opcode != zv_event_opcode_add);
     assert((handler->event_type == zv_event_type_accept) || (handler->event_type == zv_event_type_read));

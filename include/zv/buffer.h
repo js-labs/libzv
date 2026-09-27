@@ -23,6 +23,10 @@
 #include <stddef.h>
 #include "zv/export.h"
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 struct zv_buffer_s
 {
     struct zv_buffer_s * next;
@@ -36,7 +40,7 @@ ZV_EXPORT zv_buffer_cache_t * zv_buffer_cache_create(
     size_t init_buffers
 );
 
-ZV_EXPORT void zv_buffer_cache_retain(zv_buffer_cache_t * buffer_cache);
+ZV_EXPORT zv_buffer_cache_t * zv_buffer_cache_retain(zv_buffer_cache_t * buffer_cache);
 ZV_EXPORT void zv_buffer_cache_release(zv_buffer_cache_t * buffer_cache);
 
 ZV_EXPORT size_t zv_buffer_cache_get_buffer_size(zv_buffer_cache_t * buffer_cache);
@@ -46,5 +50,9 @@ ZV_EXPORT void zv_buffer_cache_put(zv_buffer_cache_t * buffer_cache, struct zv_b
 
 enum zv_log_level;
 ZV_EXPORT void zv_buffer_cache_set_log_level(enum zv_log_level level);
+
+#if defined(__cplusplus)
+}
+#endif
 
 #endif /* !defined(ZV_BUFFER_H) */

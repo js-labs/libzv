@@ -53,6 +53,10 @@ typedef int zv_socket_t;
 #error Not supported
 #endif
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 ZV_EXPORT int zv_socket_close(zv_socket_t sockfd);
 
 ZV_EXPORT const char * zv_sockaddr_ntop(
@@ -64,6 +68,10 @@ ZV_EXPORT const char * zv_sockaddr_ntop(
 
 #if defined(_WIN32)
 ZV_EXPORT int socketpair(int domain, int type, int protocol, SOCKET sv[2]);
+#endif
+
+#if defined(__cplusplus)
+}
 #endif
 
 #endif /* !defined(ZV_OS_SOCKET_H) */

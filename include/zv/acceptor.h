@@ -23,6 +23,10 @@
 #include "zv/export.h"
 #include "zv/os_socket.h"
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 typedef struct zv_loop_s zv_loop_t;
 typedef struct zv_acceptor_s zv_acceptor_t;
 
@@ -50,5 +54,9 @@ ZV_EXPORT void zv_acceptor_destroy(zv_acceptor_t * acceptor);
 
 enum zv_log_level;
 ZV_EXPORT void zv_acceptor_set_log_level(enum zv_log_level level);
+
+#if defined(__cplusplus)
+}
+#endif
 
 #endif /* !defined(ZV_ACCEPTOR_H) */

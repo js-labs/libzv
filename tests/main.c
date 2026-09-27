@@ -56,7 +56,7 @@ void run_test(int * failed_tests, const char * name, int (*test_func)())
 
     fflush(stdout);
 
-    if (log_backend)
+    if (log_backend != NULL)
     {
         FILE * file = zv_log_remove_file_backend(log_backend);
         if (file)
@@ -77,7 +77,7 @@ int main(int argc, const char * argv[])
     int failed_tests = 0;
     int tests = 0;
 
-    zv_log_add_file_backend(stdout);
+    // zv_log_add_file_backend(stdout);
     zv_acceptor_set_log_level(zv_log_level_debug);
     zv_connector_set_log_level(zv_log_level_debug);
     zv_channel_set_log_level(zv_log_level_debug);
