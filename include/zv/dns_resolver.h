@@ -24,7 +24,7 @@
 
 #if defined(_WIN32)
 #include <ws2tcpip.h>
-#elif defined(__linux__)
+#elif defined(__linux__) || defined(__APPLE__)
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netdb.h>
