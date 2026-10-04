@@ -37,6 +37,7 @@ set(LIB_SRCS
     include/zv/os_thread.h
     include/zv/os_time.h
     include/zv/semaphore.h
+    include/zv/signal.h
     include/zv/stream_defragger.h
     include/zv/thread_pool.h
     include/zv/timer_mgr.h
@@ -61,6 +62,7 @@ set(LIB_SRCS
     src/os_thread.c
     src/os_time.c
     src/semaphore.c
+    src/signal.c
     src/stream_defragger.c
     src/thread_pool.c
     src/timer_mgr.c
