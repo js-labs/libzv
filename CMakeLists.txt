@@ -129,6 +129,7 @@ if(BUILD_TESTS)
         tests/helpers.c
         tests/ipv6.c
         tests/main.c
+        tests/signal1.c
         tests/stream_defragger1.c
         tests/timer_mgr_test1.c
         tests/timer_mgr_test2.c

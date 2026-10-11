@@ -30,8 +30,21 @@ extern "C" {
 #define SIGINT  2
 #define SIGKILL 2
 #define SIGTERM 3
+#else
+#include <signal.h>
 #endif
 
+/*
+ * The handler function is called from the internal thread,
+ * not from the signal handler context, so it is not limited
+ * to the async-signal-safe functions and is allowed to add and
+ * remove handlers. A function can be registered only once
+ * and identifies the handler for the zv_signal_remove_handler().
+ * The handler function is guaranteed to be not running when the
+ * zv_signal_remove_handler() returns (except if called from the function itself).
+ * Previous signal disposition is restored when the last handler
+ * for the signal is removed.
+ */
 ZV_EXPORT int zv_signal_add_handler(int signum, void (*func)(void*), void * thunk);
 ZV_EXPORT int zv_signal_remove_handler(void (*func)(void*));
 

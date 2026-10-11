@@ -20,317 +20,450 @@
 #include "zv/err.h"
 #include "zv/signal.h"
 #include "zv/os_thread.h"
+#include "misc.h"
 
 #include <assert.h>
-#if defined(_WIN32)
-#include <Windows.h>
-#endif
-
-#define REMOVED ((struct zv_signal_handler_s*)(uintptr_t)1)
+#include <errno.h>
+#include <fcntl.h>
+#include <sched.h>
+#include <signal.h>
+#include <stdatomic.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 
 struct zv_signal_handler_s
 {
-    int signum;
+    struct zv_signal_handler_s * next;
     void (*func)(void*);
     void * thunk;
-    struct zv_signal_handler_s * next;
+};
+
+
+struct zv_signal_group_s
+{
+    struct zv_signal_group_s * next;
+    int signum;
+    struct sigaction old_sa;
+    struct zv_signal_handler_s * handler;
 };
 
 
 struct zv_signal_s
 {
-    pthread_mutex_t mutex;
+    size_t _Atomic ref_count;
     pthread_cond_t cond;
-    struct zv_signal_handler_s * handlers[2];
-    struct zv_signal_handler_s * dispatch_handler;
-    pthread_t dispatch_thread;
+
+    struct zv_signal_group_s * group;
+
+    struct
+    {
+        pthread_t thread;
+        struct zv_signal_handler_s * handler;
+        struct zv_signal_handler_s * next_handler;
+    }
+    dispatch;
+
+    int read_fd;
 };
 
+static pthread_mutex_t _zv_signal_mutex = PTHREAD_MUTEX_INITIALIZER;
+static struct zv_signal_s * _zv_signal = NULL;
 
-static pthread_once_t _zv_signal_initialized = PTHREAD_ONCE_INIT;
-static struct zv_signal_s _zv_signal;
-
-static size_t _zv_signal_dispatch(int signum)
+static struct zv_signal_write_s
 {
-    size_t dispatched_handlers = 0;
+    int _Atomic lock;
+    int fd;
+}
+_zv_signal_write = { 0, -1 };
 
-    pthread_mutex_lock(&_zv_signal.mutex);
 
-    while (_zv_signal.dispatch_handler != NULL)
-        pthread_cond_wait(&_zv_signal.cond, &_zv_signal.mutex);
+static int _zv_signal_set_write_fd(int write_fd)
+{
+    while (atomic_exchange(&_zv_signal_write.lock, 1) == 1)
+        _zv_atomic_wait();
+    int prev_write_fd = _zv_signal_write.fd;
+    _zv_signal_write.fd = write_fd;
+    atomic_exchange(&_zv_signal_write.lock, 0);
+    return prev_write_fd;
+}
 
-    struct zv_signal_handler_s * handler = _zv_signal.handlers[0];
-    if (handler != NULL)
+
+static void _zv_signal_reset_write_fd()
+{
+    int write_fd = _zv_signal_set_write_fd(-1);
+    if (write_fd >= 0)
+        close(write_fd);
+    else
+        assert(0);
+}
+
+
+static void _zv_signal_release(struct zv_signal_s * signal)
+{
+    size_t ref_count = (atomic_fetch_sub(&signal->ref_count, 1) - 1);
+    if (ref_count == 0)
     {
-        do
+        pthread_cond_destroy(&signal->cond);
+        close(signal->read_fd);
+        free(signal);
+    }
+}
+
+
+static void _zv_signal_sys_handler(int signum)
+{
+    int saved_errno = errno;
+    while (atomic_exchange(&_zv_signal_write.lock, 1) == 1)
+        _zv_atomic_wait();
+    int write_fd = _zv_signal_write.fd;
+    if (write_fd >= 0)
+    {
+        unsigned char c = (unsigned char) signum;
+        ssize_t rc = write(write_fd, &c, sizeof(c));
+        (void) rc;
+    }
+    atomic_store(&_zv_signal_write.lock, 0);
+    errno = saved_errno;
+}
+
+
+static void _zv_signal_dispatch_locked(
+    struct zv_signal_s * signal,
+    struct zv_signal_group_s * group
+) {
+    struct zv_signal_handler_s * handler = group->handler;
+    signal->dispatch.thread = pthread_self();
+    while (handler != NULL)
+    {
+        signal->dispatch.handler = handler;
+        signal->dispatch.next_handler = handler->next;
+        void (*func)(void*) = handler->func;
+        void * thunk = handler->thunk;
+        pthread_mutex_unlock(&_zv_signal_mutex);
+        func(thunk);
+        pthread_mutex_lock(&_zv_signal_mutex);
+        pthread_cond_broadcast(&signal->cond);
+        handler = signal->dispatch.next_handler;
+    }
+    signal->dispatch.handler = NULL;
+}
+
+
+static void * _zv_signal_worker(void * arg)
+{
+    struct zv_signal_s * signal = arg;
+
+    for (;;)
+    {
+        unsigned char signum;
+        ssize_t bytes_read = read(signal->read_fd, &signum, sizeof(signum));
+        if (bytes_read == 0)
+            break;
+        else if (bytes_read < 0)
         {
-            if (handler->signum == signum)
-            {
-                _zv_signal.handlers[0] = handler->next;
-                handler->next = NULL;
-                _zv_signal.dispatch_handler = handler;
-                _zv_signal.dispatch_thread = pthread_self();
-                pthread_mutex_unlock(&_zv_signal.mutex);
-
-                handler->func(handler->thunk);
-
-                pthread_mutex_lock(&_zv_signal.mutex);
-
-                dispatched_handlers++;
-                if (_zv_signal.dispatch_handler == handler)
-                {
-                    handler->next = _zv_signal.handlers[1];
-                    _zv_signal.handlers[1] = handler;
-                }
-                else
-                {
-                    // zv_signal_remove_handler() called from the callback
-                    assert(_zv_signal.dispatch_handler == REMOVED);
-                }
-            }
+            if (errno == EINTR)
+                continue;
             else
-            {
-                _zv_signal.handlers[0] = handler->next;
-                handler->next = _zv_signal.handlers[1];
-                _zv_signal.handlers[1] = handler;
-            }
-            handler = _zv_signal.handlers[0];
+                break;
         }
-        while (handler != NULL);
 
-        _zv_signal.handlers[0] = _zv_signal.handlers[1];
-        _zv_signal.handlers[1] = NULL;
-        _zv_signal.dispatch_handler = NULL;
+        pthread_mutex_lock(&_zv_signal_mutex);
 
-        pthread_cond_broadcast(&_zv_signal.cond);
+        struct zv_signal_group_s * group = signal->group;
+        while (group != NULL)
+        {
+            if (group->signum == signum)
+            {
+                _zv_signal_dispatch_locked(signal, group);
+                break;
+            }
+            group = group->next;
+        }
+
+        pthread_mutex_unlock(&_zv_signal_mutex);
     }
-    pthread_mutex_unlock(&_zv_signal.mutex);
-    return dispatched_handlers;
+
+    _zv_signal_release(signal);
+
+    return NULL;
 }
 
 
-#if defined(_WIN32)
-
-static BOOL WINAPI _zv_console_handler(DWORD signal)
+static int _zv_signal_create(struct zv_signal_s ** psignal)
 {
-    size_t dispatched_handlers = 0;
-    switch (signal)
-    {
-    case CTRL_C_EVENT:
-    case CTRL_BREAK_EVENT:
-        dispatched_handlers = _zv_signal_dispatch(SIGINT);
-        break;
+    struct zv_signal_s * signal = malloc(sizeof(*signal));
+    if (signal == NULL)
+        return ZV_ERR_NOMEM;
 
-    case CTRL_CLOSE_EVENT:
-    case CTRL_LOGOFF_EVENT:
-    case CTRL_SHUTDOWN_EVENT:
-        dispatched_handlers = _zv_signal_dispatch(SIGTERM);
-        break;
-    }
-    return (dispatched_handlers > 0) ? TRUE : FALSE;
-}
-
-static int _zv_signal_has_handlers_locked(void)
-{
-    return (_zv_signal.handlers[0] != NULL)
-        || (_zv_signal.handlers[1] != NULL)
-        || ((_zv_signal.dispatch_handler != NULL) && (_zv_signal.dispatch_handler != REMOVED));
-}
-
-#endif
-
-static void _zv_signal_init(void)
-{
-    int rc = pthread_mutex_init(&_zv_signal.mutex, NULL);
+    signal->ref_count = 2;
+    int rc = pthread_cond_init(&signal->cond, NULL);
     if (rc == 0)
     {
-        rc = pthread_cond_init(&_zv_signal.cond, NULL);
+        int pipefd[2];
+        rc = pipe(pipefd);
         if (rc == 0)
         {
-            _zv_signal.handlers[0] = NULL;
-            _zv_signal.handlers[1] = NULL;
-            _zv_signal.dispatch_handler = NULL;
-            // _zv_signal.dispatch_thread
+            sigset_t sigset;
+            sigfillset(&sigset);
+            sigdelset(&sigset, SIGSEGV);
+            sigdelset(&sigset, SIGBUS);
+            sigdelset(&sigset, SIGFPE);
+            sigdelset(&sigset, SIGILL);
+
+            sigset_t prev_sigset;
+            rc = pthread_sigmask(SIG_BLOCK, &sigset, &prev_sigset);
+            if (rc == 0)
+            {
+                signal->group = NULL;
+                signal->dispatch.handler = NULL;
+                signal->dispatch.next_handler = NULL;
+                signal->read_fd = pipefd[0];
+
+                pthread_t worker_thread;
+                rc = pthread_create(&worker_thread, NULL, &_zv_signal_worker, signal);
+                pthread_sigmask(SIG_SETMASK, &prev_sigset, NULL);
+                if (rc == 0)
+                {
+                    pthread_detach(worker_thread);
+                    int write_fd = _zv_signal_set_write_fd(pipefd[1]);
+                    if (write_fd >= 0)
+                    {
+                        close(write_fd);
+                        assert(0);
+                    }
+                    *psignal = signal;
+                    return 0;
+                }
+            }
+
+            close(pipefd[0]);
+            close(pipefd[1]);
         }
-        else
-            abort();
+        pthread_cond_destroy(&signal->cond);
     }
-    else
-        abort();
+    free(signal);
+    return rc;
 }
 
 
 int zv_signal_add_handler(int signum, void (*func)(void*), void * thunk)
 {
-#if defined(_WIN32)
-    if ((signum != SIGINT) && (signum != SIGTERM))
+    if ((signum <= 0) || (signum >= NSIG) || (func == NULL))
         return ZV_ERR_INVAL;
-#endif
 
-    pthread_once(&_zv_signal_initialized, &_zv_signal_init);
+    pthread_mutex_lock(&_zv_signal_mutex);
+    struct zv_signal_s * signal = _zv_signal;
 
-    struct zv_signal_handler_s * new_handler = malloc(sizeof(struct zv_signal_handler_s));
-    if (new_handler == NULL)
-        return ZV_ERR_NOMEM;
-
-    pthread_mutex_lock(&_zv_signal.mutex);
-
-#if !defined(_WIN32)
-    int install_system_handler = 1;
-#endif
-
-    for (size_t idx=0; idx<2; idx++)
+    if (signal == NULL)
     {
-        struct zv_signal_handler_s * handler = _zv_signal.handlers[idx];
-        while (handler != NULL)
+        int rc = _zv_signal_create(&signal);
+        if (rc != 0)
         {
-#if !defined(_WIN32)
-            if (handler->signum == signum)
-                install_system_handler = 0;
-#endif
-            if (handler->func == func)
-            {
-                pthread_mutex_unlock(&_zv_signal.mutex);
-                free(new_handler);
-                return ZV_ERR_INVAL;
-            }
-            handler = handler->next;
-        }
-    }
-
-    if ((_zv_signal.dispatch_handler != NULL)
-        && (_zv_signal.dispatch_handler != REMOVED))
-    {
-#if !defined(_WIN32)
-        if (_zv_signal.dispatch_handler->signum == signum)
-            install_system_handler = 0;
-#endif
-        if (_zv_signal.dispatch_handler->func == func)
-        {
-            pthread_mutex_unlock(&_zv_signal.mutex);
-            free(new_handler);
-            return ZV_ERR_INVAL;
-        }
-    }
-
-    new_handler->signum = signum;
-    new_handler->func = func;
-    new_handler->thunk = thunk;
-    new_handler->next = _zv_signal.handlers[0];
-
-#if defined(_WIN32)
-    if (!_zv_signal_has_handlers_locked())
-        SetConsoleCtrlHandler(&_zv_console_handler, TRUE);
-#else
-#endif
-
-    _zv_signal.handlers[0] = new_handler;
-
-    pthread_mutex_unlock(&_zv_signal.mutex);
-
-    return 0;
-}
-
-
-static struct zv_signal_handler_s * _zv_signal_remove_handler(
-    struct zv_signal_handler_s * handler,
-    void (*func)(void*),
-    struct zv_signal_handler_s ** removed
-) {
-    struct zv_signal_handler_s * head = handler;
-    struct zv_signal_handler_s * prev = NULL;
-    while (handler != NULL)
-    {
-        if (handler->func == func)
-        {
-            if (prev == NULL)
-                head = handler->next;
-            else
-                prev->next = handler->next;
-            handler->next = NULL;
-            *removed = handler;
-            break;
-        }
-        prev = handler;
-        handler = handler->next;
-    }
-    return head;
-}
-
-#if !defined(_WIN32)
-
-static struct zv_signal_handler_s * _zv_signal_find_handler(
-    struct zv_signal_handler_s * handler,
-    int signum
-) {
-    while (handler != NULL)
-    {
-        if (handler->signum == signum)
-            return handler;
-        handler = handler->next;
-    }
-    return NULL;
-}
-
-#endif
-
-int zv_signal_remove_handler(void (*func)(void*))
-{
-    pthread_once(&_zv_signal_initialized, &_zv_signal_init);
-
-    struct zv_signal_handler_s * removed = NULL;
-
-    pthread_mutex_lock(&_zv_signal.mutex);
-
-    if (_zv_signal.dispatch_handler == NULL)
-    {
-        assert(_zv_signal.handlers[1] == NULL);
-        _zv_signal.handlers[0] = _zv_signal_remove_handler(_zv_signal.handlers[0], func, &removed);
-    }
-    else if (pthread_equal(_zv_signal.dispatch_thread, pthread_self()))
-    {
-        // called from the callback
-        if ((_zv_signal.dispatch_handler == REMOVED) || (_zv_signal.dispatch_handler->func != func))
-        {
-            // removing different handler
-            _zv_signal.handlers[0] = _zv_signal_remove_handler(_zv_signal.handlers[0], func, &removed);
-            if (removed == NULL)
-                _zv_signal.handlers[1] = _zv_signal_remove_handler(_zv_signal.handlers[1], func, &removed);
-        }
-        else // (_zv_signal.dispatch_handler->func == func)
-        {
-            // removing same handler
-            removed = _zv_signal.dispatch_handler;
-            _zv_signal.dispatch_handler = REMOVED;
+            pthread_mutex_unlock(&_zv_signal_mutex);
+            return rc;
         }
     }
     else
     {
-        for (;;)
+        struct zv_signal_group_s * group = signal->group;
+        while (group != NULL)
         {
-            pthread_cond_wait(&_zv_signal.cond, &_zv_signal.mutex);
-            if (_zv_signal.dispatch_handler == NULL)
-                break;
+            struct zv_signal_handler_s * handler = group->handler;
+            while (handler != NULL)
+            {
+                if (handler->func == func)
+                {
+                    pthread_mutex_unlock(&_zv_signal_mutex);
+                    return ZV_ERR_INVAL;
+                }
+                handler = handler->next;
+            }
+            group = group->next;
         }
-        assert(_zv_signal.handlers[1] == NULL);
-        _zv_signal.handlers[0] = _zv_signal_remove_handler(_zv_signal.handlers[0], func, &removed);
     }
 
-    if (removed == NULL)
+    struct zv_signal_group_s * group = signal->group;
+    while (group != NULL)
     {
-        pthread_mutex_unlock(&_zv_signal.mutex);
+        if (group->signum == signum)
+        {
+            struct zv_signal_handler_s * handler = malloc(sizeof(*handler));
+            if (handler == NULL)
+            {
+                pthread_mutex_unlock(&_zv_signal_mutex);
+                return ZV_ERR_NOMEM;
+            }
+            else
+            {
+                handler->next = group->handler;
+                handler->func = func;
+                handler->thunk = thunk;
+                group->handler = handler;
+                pthread_mutex_unlock(&_zv_signal_mutex);
+                return 0;
+            }
+        }
+        group = group->next;
+    }
+
+    // new group
+
+    size_t malloc_size = sizeof(struct zv_signal_group_s) + sizeof(struct zv_signal_handler_s);
+    group = malloc(malloc_size);
+    if (group == NULL)
+    {
+        if (_zv_signal == NULL)
+            _zv_signal_reset_write_fd();
+        else
+            signal = NULL;
+        pthread_mutex_unlock(&_zv_signal_mutex);
+
+        if (signal != NULL)
+            _zv_signal_release(signal);
+
+        return ZV_ERR_NOMEM;
+    }
+
+    struct zv_signal_handler_s * handler = (void*) (group + 1);
+
+    handler->next = NULL;
+    handler->func = func;
+    handler->thunk = thunk;
+
+    group->next = signal->group;
+    group->signum = signum;
+    group->handler = handler;
+    signal->group = group;
+
+    struct sigaction sa;
+    memset(&sa, 0, sizeof(sa));
+    sa.sa_handler = &_zv_signal_sys_handler;
+    int rc = sigaction(signum, &sa, &group->old_sa);
+    if (rc == 0)
+    {
+        _zv_signal = signal;
+        pthread_mutex_unlock(&_zv_signal_mutex);
+        return 0;
+    }
+    else
+    {
+        signal->group = group->next;
+        if (_zv_signal == NULL)
+            _zv_signal_reset_write_fd();
+        else
+            signal = NULL;
+        pthread_mutex_unlock(&_zv_signal_mutex);
+
+        free(group);
+
+        if (signal != NULL)
+            _zv_signal_release(signal);
+
+        return ZV_ERR_INVAL;
+    }
+}
+
+
+int zv_signal_remove_handler(void (*func)(void*))
+{
+    pthread_mutex_lock(&_zv_signal_mutex);
+
+    struct zv_signal_s * signal = _zv_signal;
+    if (signal == NULL)
+    {
+        pthread_mutex_unlock(&_zv_signal_mutex);
         return ZV_ERR_INVAL;
     }
 
-#if defined(_WIN32)
-    if (!_zv_signal_has_handlers_locked())
-        SetConsoleCtrlHandler(&_zv_console_handler, FALSE);
-#else
-#endif
+    struct zv_signal_group_s ** group_link = &signal->group;
+    struct zv_signal_group_s * group = signal->group;
+    struct zv_signal_handler_s ** handler_link;
+    struct zv_signal_handler_s * handler;
+    for (;;)
+    {
+        while (group != NULL)
+        {
+            handler_link = &group->handler;
+            handler = group->handler;
+            while (handler != NULL)
+            {
+                if (handler->func == func)
+                    goto found;
+                handler_link = &handler->next;
+                handler = handler->next;
+            }
+            group_link = &group->next;
+            group = group->next;
+        }
 
-    pthread_mutex_unlock(&_zv_signal.mutex);
+        pthread_mutex_unlock(&_zv_signal_mutex);
+        return ZV_ERR_INVAL;
 
-    free(removed);
+    found:
+        if (handler == signal->dispatch.handler)
+        {
+            if (pthread_equal(signal->dispatch.thread, pthread_self()))
+            {
+                // Called from the handler callback, continue
+                break;
+            }
+            else
+            {
+                // The callback is running, wait until it is done
+                pthread_cond_wait(&signal->cond, &_zv_signal_mutex);
+                if (_zv_signal != signal)
+                {
+                    pthread_mutex_unlock(&_zv_signal_mutex);
+                    return ZV_ERR_INVAL;
+                }
+                group_link = &signal->group;
+                group = signal->group;
+            }
+        }
+        else
+            break;
+    }
+
+    *handler_link = handler->next;
+    if (handler == (void*) (group + 1))
+    {
+        if (group->handler == NULL)
+        {
+            sigaction(group->signum, &group->old_sa, NULL);
+            *group_link = group->next;
+            free(group);
+            if (signal->group == NULL)
+            {
+                _zv_signal = NULL;
+                _zv_signal_reset_write_fd();
+                pthread_mutex_unlock(&_zv_signal_mutex);
+                _zv_signal_release(signal);
+                return 0;
+            }
+        }
+        else
+        {
+            if (signal->dispatch.next_handler == handler)
+                signal->dispatch.next_handler = handler->next;
+            *handler = *group->handler;
+            if (signal->dispatch.handler == handler)
+                signal->dispatch.handler = NULL;
+            else if (signal->dispatch.handler == group->handler)
+                signal->dispatch.handler = handler;
+            free(group->handler);
+            group->handler = handler;
+        }
+    }
+    else
+    {
+        if (signal->dispatch.next_handler == handler)
+            signal->dispatch.next_handler = handler->next;
+        free(handler);
+    }
+
+    pthread_mutex_unlock(&_zv_signal_mutex);
 
     return 0;
 }
