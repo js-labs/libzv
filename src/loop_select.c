@@ -27,6 +27,7 @@
 #include <string.h>
 
 #if !defined(_WIN32)
+#include <errno.h>
 #include <sys/select.h>
 #include <unistd.h>
 #endif
@@ -299,6 +300,10 @@ static void _zv_loop_select_run(struct zv_loop_s * loop)
         int nfds = _fdsets_init(&fdsets, impl->wakeup_pipe[0], sockets);
         int fds_ready = select(nfds, &fdsets.read, &fdsets.write, &fdsets.except, ((readers > 0) ? &timeout : NULL));
         //printf("fds_ready=%d readers=%d\n", fds_ready, readers);
+#if !defined(_WIN32)
+        if ((fds_ready < 0) && (errno == EINTR))
+            continue;
+#endif
 
         _zv_loop_select_process_fdsets(&fdsets, sockets, loop->thread_pool, &readers);
 

@@ -21,6 +21,7 @@ int connector3();
 int dns_resolver1();
 int he_connector1();
 int ipv6();
+int signal1();
 int stream_defragger1();
 int timer_mgr_test1();
 int timer_mgr_test2();
@@ -100,6 +101,7 @@ int main(int argc, const char * argv[])
     RUN_TEST(dns_resolver1);
     RUN_TEST(he_connector1);
     RUN_TEST(ipv6);
+    RUN_TEST(signal1);
     RUN_TEST(stream_defragger1);
     RUN_TEST(timer_mgr_test1);
     RUN_TEST(timer_mgr_test2);

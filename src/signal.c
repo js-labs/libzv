@@ -23,12 +23,8 @@
 #include "misc.h"
 
 #include <assert.h>
-#include <errno.h>
 #include <fcntl.h>
-#include <sched.h>
-#include <signal.h>
 #include <stdatomic.h>
-#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -73,7 +69,7 @@ static struct zv_signal_s * _zv_signal = NULL;
 
 static struct zv_signal_write_s
 {
-    int _Atomic lock;
+    atomic_int lock;
     int fd;
 }
 _zv_signal_write = { 0, -1 };
@@ -205,6 +201,14 @@ static int _zv_signal_create(struct zv_signal_s ** psignal)
         rc = pipe(pipefd);
         if (rc == 0)
         {
+            // The signal handler should never block on the write.
+            int write_fd_flags = fcntl(pipefd[1], F_GETFL);
+            if (write_fd_flags >= 0)
+                fcntl(pipefd[1], F_SETFL, write_fd_flags|O_NONBLOCK);
+
+            fcntl(pipefd[0], F_SETFD, FD_CLOEXEC);
+            fcntl(pipefd[1], F_SETFD, FD_CLOEXEC);
+
             sigset_t sigset;
             sigfillset(&sigset);
             sigdelset(&sigset, SIGSEGV);
@@ -340,6 +344,7 @@ int zv_signal_add_handler(int signum, void (*func)(void*), void * thunk)
     struct sigaction sa;
     memset(&sa, 0, sizeof(sa));
     sa.sa_handler = &_zv_signal_sys_handler;
+    sa.sa_flags = SA_RESTART;
     int rc = sigaction(signum, &sa, &group->old_sa);
     if (rc == 0)
     {
@@ -447,6 +452,8 @@ int zv_signal_remove_handler(void (*func)(void*))
         {
             if (signal->dispatch.next_handler == handler)
                 signal->dispatch.next_handler = handler->next;
+            else if (signal->dispatch.next_handler == group->handler)
+                signal->dispatch.next_handler = handler;
             *handler = *group->handler;
             if (signal->dispatch.handler == handler)
                 signal->dispatch.handler = NULL;
