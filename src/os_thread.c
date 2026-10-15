@@ -45,7 +45,7 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
                 if (uptr & 1)
                 {
                     ptr = (void*) (uptr ^ 1);
-                    free(ptr);
+                    LocalFree(ptr);
                 }
             }
             break;
@@ -78,7 +78,7 @@ pthread_t pthread_self()
     void * ptr = TlsGetValue(_zv_thread_tls_index);
     if ((GetLastError() == ERROR_SUCCESS) && (ptr == NULL))
     {
-        ptr = malloc(sizeof(DWORD));
+        ptr = LocalAlloc(LMEM_FIXED, sizeof(DWORD));
         if (ptr != NULL)
         {
             *((DWORD*)ptr) = GetCurrentThreadId();
