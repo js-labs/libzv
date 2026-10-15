@@ -166,7 +166,7 @@ int benchmark_thread_pool_throughput()
     struct test_s test;
     test_init(&test, 4, PRODUCERS, TASKS_PER_PRODUCER);
 
-    pthread_t * thread_id = malloc(sizeof(thread_id) * PRODUCERS);
+    pthread_t * thread_id = malloc(sizeof(pthread_t) * PRODUCERS);
     for (size_t idx=0; idx<PRODUCERS; idx++)
         pthread_create(&thread_id[idx], NULL, producer, &test);
 

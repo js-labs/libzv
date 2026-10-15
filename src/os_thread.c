@@ -21,44 +21,122 @@
 
 #if defined(_WIN32)
 
-struct zv_thread_arg_s
+
+struct zv_thread_s
 {
-    void* (*start_routine)(void*);
-    void* arg;
+    volatile LONG ref_count;
+    HANDLE handle;
+    DWORD id;
+    void * (*start_routine)(void*);
+    void * arg;
+    void * retval;
 };
 
 
-static inline DWORD _zv_thread_func(void * arg)
+pthread_t pthread_self()
 {
-    struct zv_thread_arg_s * thread_arg = arg;
-    void * (*start_routine)(void*) = thread_arg->start_routine;
-    arg = thread_arg->arg;
-    free(thread_arg);
-    start_routine(arg);
+    uintptr_t tid = GetCurrentThreadId();
+    return (pthread_t) ((tid << 1) | 1);
+}
+
+
+int pthread_equal(pthread_t t1, pthread_t t2)
+{
+    uintptr_t lt1 = (uintptr_t) t1;
+    uintptr_t lt2 = (uintptr_t) t2;
+    if (lt1 & 1)
+    {
+        if (lt2 & 1)
+            return (t1 == t2);
+        else
+            return ((lt1 >> 1) == t2->id);
+    }
+    else
+    {
+        if (lt2 & 1)
+            return (t1->id == (lt2 >> 1));
+        else
+            return (t1 == t2);
+    }
+}
+
+
+static DWORD WINAPI _zv_thread_func(void * arg)
+{
+    struct zv_thread_s * thread = arg;
+    thread->retval = thread->start_routine(thread->arg);
+    if (InterlockedDecrement(&thread->ref_count) == 0)
+        free(thread);
     return 0;
 }
 
 
 int pthread_create(
-    pthread_t * thread,
+    pthread_t * ret,
     const pthread_attr_t * attr,
     void * (*start_routine)(void*),
     void * arg
 ) {
-    struct zv_thread_arg_s * thread_arg = malloc(sizeof(struct zv_thread_arg_s));
-    if (thread_arg)
+    struct zv_thread_s * thread = malloc(sizeof(struct zv_thread_s));
+    if (thread == NULL)
+        return ENOMEM;
+
+    thread->ref_count = 2; // thread + (join or detach)
+    thread->start_routine = start_routine;
+    thread->arg = arg;
+    thread->retval = NULL;
+    HANDLE hThread = CreateThread(NULL, 0, &_zv_thread_func, thread, 0, &thread->id);
+    if (hThread != NULL)
     {
-        thread_arg->start_routine = start_routine;
-        thread_arg->arg = arg;
-        HANDLE hThread = CreateThread(NULL, 0, &_zv_thread_func, thread_arg, 0, NULL);
-        if (hThread)
-        {
-            *thread = hThread;
-            return 0;
-        }
-        free(thread_arg);
+        thread->handle = hThread;
+        *ret = thread;
+        return 0;
     }
-    return -1;
+    free(thread);
+    return EAGAIN;
+}
+
+
+int pthread_join(pthread_t thread, void ** retval)
+{
+    if (((uintptr_t)thread) & 1)
+    {
+        // result of pthread_self() not supposed to be joined
+        return EINVAL;
+    }
+
+    if (WaitForSingleObject(thread->handle, INFINITE) != WAIT_OBJECT_0)
+    {
+        // not sure it make sense to continue in case of error here
+        return EINVAL;
+    }
+
+    if (retval != NULL)
+        *retval = thread->retval;
+
+    CloseHandle(thread->handle);
+
+    if (InterlockedDecrement(&thread->ref_count) == 0)
+        free(thread);
+
+    return 0;
+}
+
+
+int pthread_detach(pthread_t thread)
+{
+    if (((uintptr_t)thread) & 1)
+    {
+        // result of pthread_self() not supposed to be detached
+        return EINVAL;
+    }
+
+    CloseHandle(thread->handle);
+
+    if (InterlockedDecrement(&thread->ref_count) == 0)
+        free(thread);
+
+    return 0;
 }
 
 
