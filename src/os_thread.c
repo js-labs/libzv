@@ -76,17 +76,14 @@ struct zv_thread_s
 pthread_t pthread_self()
 {
     void * ptr = TlsGetValue(_zv_thread_tls_index);
-    if (GetLastError() == ERROR_SUCCESS)
+    if ((GetLastError() == ERROR_SUCCESS) && (ptr == NULL))
     {
-        if (ptr == NULL)
+        ptr = malloc(sizeof(DWORD));
+        if (ptr != NULL)
         {
-            ptr = malloc(sizeof(DWORD));
-            if (ptr != NULL)
-            {
-                *((DWORD*)ptr) = GetCurrentThreadId();
-                ptr = (void*) (((uintptr_t)ptr) | 1);
-                TlsSetValue(_zv_thread_tls_index, ptr);
-            }
+            *((DWORD*)ptr) = GetCurrentThreadId();
+            ptr = (void*) (((uintptr_t)ptr) | 1);
+            TlsSetValue(_zv_thread_tls_index, ptr);
         }
     }
     return ptr;
