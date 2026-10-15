@@ -21,6 +21,46 @@
 
 #if defined(_WIN32)
 
+static DWORD _zv_thread_tls_index = 0;
+
+BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
+{
+    void * ptr;
+    switch (fdwReason)
+    {
+        case DLL_PROCESS_ATTACH:
+            _zv_thread_tls_index = TlsAlloc();
+            if (_zv_thread_tls_index == TLS_OUT_OF_INDEXES)
+                return FALSE;
+            break;
+
+        case DLL_THREAD_ATTACH:
+            break;
+
+        case DLL_THREAD_DETACH:
+            ptr = TlsGetValue(_zv_thread_tls_index);
+            if (ptr != NULL)
+            {
+                uintptr_t uptr = (uintptr_t) ptr;
+                if (uptr & 1)
+                {
+                    ptr = (void*) (uptr ^ 1);
+                    free(ptr);
+                }
+            }
+            break;
+
+        case DLL_PROCESS_DETACH:
+            TlsFree(_zv_thread_tls_index);
+            break;
+
+        default:
+            break;
+    }
+
+    return TRUE;
+}
+
 
 struct zv_thread_s
 {
@@ -35,8 +75,21 @@ struct zv_thread_s
 
 pthread_t pthread_self()
 {
-    uintptr_t tid = GetCurrentThreadId();
-    return (pthread_t) ((tid << 1) | 1);
+    void * ptr = TlsGetValue(_zv_thread_tls_index);
+    if (GetLastError() == ERROR_SUCCESS)
+    {
+        if (ptr == NULL)
+        {
+            ptr = malloc(sizeof(DWORD));
+            if (ptr != NULL)
+            {
+                *((DWORD*)ptr) = GetCurrentThreadId();
+                ptr = (void*) (((uintptr_t)ptr) | 1);
+                TlsSetValue(_zv_thread_tls_index, ptr);
+            }
+        }
+    }
+    return ptr;
 }
 
 
@@ -49,12 +102,18 @@ int pthread_equal(pthread_t t1, pthread_t t2)
         if (lt2 & 1)
             return (t1 == t2);
         else
-            return ((lt1 >> 1) == t2->id);
+        {
+            DWORD t1_id = *((DWORD*) (void*) (lt1 ^ 1));
+            return (t1_id == t2->id);
+        }
     }
     else
     {
         if (lt2 & 1)
-            return (t1->id == (lt2 >> 1));
+        {
+            DWORD t2_id = *((DWORD*) (void*) (lt2 ^ 1));
+            return (t1->id == t2_id);
+        }
         else
             return (t1 == t2);
     }
@@ -63,8 +122,10 @@ int pthread_equal(pthread_t t1, pthread_t t2)
 
 static DWORD WINAPI _zv_thread_func(void * arg)
 {
+    TlsSetValue(_zv_thread_tls_index, arg);
     struct zv_thread_s * thread = arg;
     thread->retval = thread->start_routine(thread->arg);
+    TlsSetValue(_zv_thread_tls_index, NULL);
     if (InterlockedDecrement(&thread->ref_count) == 0)
         free(thread);
     return 0;
