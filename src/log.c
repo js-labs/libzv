@@ -217,8 +217,9 @@ static struct zv_log_s * _zv_log_create()
     struct zv_log_s * log = NULL;
     if (atomic_compare_exchange_strong(&_zv_log, &log, new_log))
     {
-        pthread_t thread_id;
-        pthread_create(&thread_id, NULL, &_zv_log_worker, new_log);
+        pthread_t thread;
+        if (pthread_create(&thread, NULL, &_zv_log_worker, new_log) == 0)
+            pthread_detach(thread);
         return new_log;
     }
     else

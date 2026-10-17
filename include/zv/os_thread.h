@@ -29,7 +29,7 @@
 
 typedef DWORD pid_t;
 typedef DWORD tid_t;
-typedef HANDLE pthread_t;
+typedef struct zv_thread_s * pthread_t;
 typedef INIT_ONCE pthread_once_t;
 typedef struct pthread_attr_s pthread_attr_t;
 typedef CRITICAL_SECTION pthread_mutex_t;
@@ -44,28 +44,20 @@ typedef DWORD pthread_key_t;
 extern "C" {
 #endif
 
-static inline pthread_t pthread_self()
-{
-    return GetCurrentThread();
-}
+ZV_EXPORT pthread_t pthread_self();
 
-static inline int pthread_equal(pthread_t t1, pthread_t t2)
-{
-    return (t1 == t2);
-}
+ZV_EXPORT int pthread_equal(pthread_t t1, pthread_t t2);
 
 ZV_EXPORT int pthread_create(
-    pthread_t * thread,
+    pthread_t * ret,
     const pthread_attr_t * attr,
     void *(*start_routine)(void*),
     void * arg
 );
 
-static inline int pthread_join(pthread_t thread, void ** retval)
-{
-    WaitForSingleObject(thread, INFINITE);
-    return 0;
-}
+ZV_EXPORT int pthread_join(pthread_t thread, void ** retval);
+
+ZV_EXPORT int pthread_detach(pthread_t thread);
 
 ZV_EXPORT int pthread_once(
     pthread_once_t * once_control,
