@@ -42,7 +42,7 @@ static inline long sem_post(sem_t * sem) { return dispatch_semaphore_signal(*sem
 
 typedef struct
 {
-    CRITICAL_SECTION cs;
+    SRWLOCK lock;
     CONDITION_VARIABLE cv;
     int value;
 }

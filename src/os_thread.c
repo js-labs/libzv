@@ -247,7 +247,7 @@ int pthread_cond_timedwait(
             sleep_time_ms -= (now_ns / 1000000);
         }
 
-        BOOL rc = SleepConditionVariableCS(cond, mutex, sleep_time_ms);
+        BOOL rc = SleepConditionVariableSRW(cond, mutex, sleep_time_ms, 0);
         if (rc)
             return 0;
 

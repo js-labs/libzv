@@ -24,6 +24,7 @@
 
 #include <windows.h>
 #include <stdlib.h>
+#include <errno.h>
 #include "zv/export.h"
 #include "zv/os_time.h"
 
@@ -32,13 +33,15 @@ typedef DWORD tid_t;
 typedef struct zv_thread_s * pthread_t;
 typedef INIT_ONCE pthread_once_t;
 typedef struct pthread_attr_s pthread_attr_t;
-typedef CRITICAL_SECTION pthread_mutex_t;
+typedef SRWLOCK pthread_mutex_t;
 typedef struct pthread_mutexattr_s pthread_mutexattr_t;
 typedef CONDITION_VARIABLE pthread_cond_t;
 typedef struct pthread_condattr_s { char _dummy; } pthread_condattr_t;
 typedef DWORD pthread_key_t;
 
 #define PTHREAD_ONCE_INIT INIT_ONCE_STATIC_INIT
+#define PTHREAD_MUTEX_INITIALIZER SRWLOCK_INIT
+#define PTHREAD_COND_INITIALIZER CONDITION_VARIABLE_INIT
 
 #if defined(__cplusplus)
 extern "C" {
@@ -68,25 +71,30 @@ static inline int pthread_mutex_init(
     pthread_mutex_t * mutex,
     const pthread_mutexattr_t * attr
 ) {
-    InitializeCriticalSection(mutex);
+    InitializeSRWLock(mutex);
     return 0;
 }
 
 static inline int pthread_mutex_destroy(pthread_mutex_t * mutex)
 {
-    DeleteCriticalSection(mutex);
+    // SRW lock does not need to be destroyed
     return 0;
 }
 
 static inline int pthread_mutex_lock(pthread_mutex_t * mutex)
 {
-    EnterCriticalSection(mutex);
+    AcquireSRWLockExclusive(mutex);
     return 0;
+}
+
+static inline int pthread_mutex_trylock(pthread_mutex_t * mutex)
+{
+    return TryAcquireSRWLockExclusive(mutex) ? 0 : EBUSY;
 }
 
 static inline int pthread_mutex_unlock(pthread_mutex_t * mutex)
 {
-    LeaveCriticalSection(mutex);
+    ReleaseSRWLockExclusive(mutex);
     return 0;
 }
 
@@ -107,7 +115,7 @@ static inline int pthread_cond_wait(
     pthread_cond_t * cond,
     pthread_mutex_t * mutex
 ) {
-    SleepConditionVariableCS(cond, mutex, INFINITE);
+    SleepConditionVariableSRW(cond, mutex, INFINITE, 0);
     return 0;
 }
 
