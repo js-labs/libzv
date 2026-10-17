@@ -26,7 +26,7 @@ int sem_init(sem_t * sem, int pshared, int value)
     if (pshared)
         return -1;
 
-    InitializeCriticalSection(&sem->cs);
+    InitializeSRWLock(&sem->lock);
     InitializeConditionVariable(&sem->cv);
     sem->value = value;
 
@@ -35,26 +35,26 @@ int sem_init(sem_t * sem, int pshared, int value)
 
 int sem_destroy(sem_t * sem)
 {
-    DeleteCriticalSection(&sem->cs);
+    // SRW lock does not need to be destroyed
     return 0;
 }
 
 int sem_wait(sem_t * sem)
 {
-    EnterCriticalSection(&sem->cs);
+    AcquireSRWLockExclusive(&sem->lock);
     while (sem->value == 0)
-        SleepConditionVariableCS(&sem->cv, &sem->cs, INFINITE);
+        SleepConditionVariableSRW(&sem->cv, &sem->lock, INFINITE, 0);
     sem->value--;
-    LeaveCriticalSection(&sem->cs);
+    ReleaseSRWLockExclusive(&sem->lock);
     return 0;
 }
 
 int sem_post(sem_t * sem)
 {
-    EnterCriticalSection(&sem->cs);
+    AcquireSRWLockExclusive(&sem->lock);
     sem->value++;
     WakeConditionVariable(&sem->cv);
-    LeaveCriticalSection(&sem->cs);
+    ReleaseSRWLockExclusive(&sem->lock);
     return 0;
 }
 
