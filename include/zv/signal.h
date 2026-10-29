@@ -26,13 +26,7 @@
 extern "C" {
 #endif
 
-#if defined(_WIN32)
-#define SIGINT  2
-#define SIGKILL 2
-#define SIGTERM 3
-#else
 #include <signal.h>
-#endif
 
 /*
  * The handler function is called from the internal thread,
@@ -44,6 +38,15 @@ extern "C" {
  * zv_signal_remove_handler() returns (except if called from the function itself).
  * Previous signal disposition is restored when the last handler
  * for the signal is removed.
+ *
+ * Windows: signals are emulated with the console control handler,
+ * only the following signals are supported:
+ *    SIGINT   - CTRL_C_EVENT
+ *    SIGBREAK - CTRL_BREAK_EVENT
+ *    SIGTERM  - CTRL_CLOSE_EVENT, CTRL_LOGOFF_EVENT, CTRL_SHUTDOWN_EVENT
+ * The handler function is called from the thread created by the system
+ * to deliver the event. The system terminates the process as soon as
+ * all SIGTERM handlers return (or the system timeout expires).
  */
 ZV_EXPORT int zv_signal_add_handler(int signum, void (*func)(void*), void * thunk);
 ZV_EXPORT int zv_signal_remove_handler(void (*func)(void*));

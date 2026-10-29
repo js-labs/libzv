@@ -22,12 +22,20 @@
 #include "zv/os_thread.h"
 #include "misc.h"
 
+#if defined(__INTELLISENSE__)
+#define _Atomic
+#else
+#include <stdatomic.h>
+#endif
+
+#include <stdlib.h>
+
+#if !defined(_WIN32)
 #include <assert.h>
 #include <fcntl.h>
-#include <stdatomic.h>
-#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#endif
 
 struct zv_signal_handler_s
 {
@@ -41,7 +49,9 @@ struct zv_signal_group_s
 {
     struct zv_signal_group_s * next;
     int signum;
+#if !defined(_WIN32)
     struct sigaction old_sa;
+#endif
     struct zv_signal_handler_s * handler;
 };
 
@@ -61,39 +71,18 @@ struct zv_signal_s
     }
     dispatch;
 
+#if !defined(_WIN32)
     int read_fd;
+#endif
 };
 
 static pthread_mutex_t _zv_signal_mutex = PTHREAD_MUTEX_INITIALIZER;
+#if defined(_WIN32)
+static pthread_mutex_t _zv_signal_dispatch_mutex = PTHREAD_MUTEX_INITIALIZER;
+static int _zv_signal_ctrl_handler_registered = 0;
+#endif
+
 static struct zv_signal_s * _zv_signal = NULL;
-
-static struct zv_signal_write_s
-{
-    atomic_int lock;
-    int fd;
-}
-_zv_signal_write = { 0, -1 };
-
-
-static int _zv_signal_set_write_fd(int write_fd)
-{
-    while (atomic_exchange(&_zv_signal_write.lock, 1) == 1)
-        _zv_atomic_wait();
-    int prev_write_fd = _zv_signal_write.fd;
-    _zv_signal_write.fd = write_fd;
-    atomic_exchange(&_zv_signal_write.lock, 0);
-    return prev_write_fd;
-}
-
-
-static void _zv_signal_reset_write_fd()
-{
-    int write_fd = _zv_signal_set_write_fd(-1);
-    if (write_fd >= 0)
-        close(write_fd);
-    else
-        assert(0);
-}
 
 
 static void _zv_signal_release(struct zv_signal_s * signal)
@@ -102,26 +91,11 @@ static void _zv_signal_release(struct zv_signal_s * signal)
     if (ref_count == 0)
     {
         pthread_cond_destroy(&signal->cond);
+#if !defined(_WIN32)
         close(signal->read_fd);
+#endif
         free(signal);
     }
-}
-
-
-static void _zv_signal_sys_handler(int signum)
-{
-    int saved_errno = errno;
-    while (atomic_exchange(&_zv_signal_write.lock, 1) == 1)
-        _zv_atomic_wait();
-    int write_fd = _zv_signal_write.fd;
-    if (write_fd >= 0)
-    {
-        unsigned char c = (unsigned char) signum;
-        ssize_t rc = write(write_fd, &c, sizeof(c));
-        (void) rc;
-    }
-    atomic_store(&_zv_signal_write.lock, 0);
-    errno = saved_errno;
 }
 
 
@@ -144,6 +118,154 @@ static void _zv_signal_dispatch_locked(
         handler = signal->dispatch.next_handler;
     }
     signal->dispatch.handler = NULL;
+}
+
+
+#if defined(_WIN32)
+
+static BOOL WINAPI _zv_signal_ctrl_handler(DWORD ctrl_type)
+{
+    int signum;
+    switch (ctrl_type)
+    {
+        case CTRL_C_EVENT:
+            signum = SIGINT;
+            break;
+        case CTRL_BREAK_EVENT:
+            signum = SIGBREAK;
+            break;
+        case CTRL_CLOSE_EVENT:
+        case CTRL_LOGOFF_EVENT:
+        case CTRL_SHUTDOWN_EVENT:
+            signum = SIGTERM;
+            break;
+        default:
+            return FALSE;
+    }
+
+    // The system calls the function in a new thread for each event,
+    // so events can come concurrently. The handlers are called right
+    // here because the process will be terminated on return for the
+    // CTRL_CLOSE_EVENT, CTRL_LOGOFF_EVENT and CTRL_SHUTDOWN_EVENT.
+    pthread_mutex_lock(&_zv_signal_dispatch_mutex);
+    pthread_mutex_lock(&_zv_signal_mutex);
+
+    struct zv_signal_s * signal = _zv_signal;
+    struct zv_signal_group_s * group = (signal == NULL) ? NULL : signal->group;
+    while (group != NULL)
+    {
+        if (group->signum == signum)
+            break;
+        group = group->next;
+    }
+
+    if (group == NULL)
+    {
+        // No handlers, let the next (or default) handler process the event.
+        pthread_mutex_unlock(&_zv_signal_mutex);
+        pthread_mutex_unlock(&_zv_signal_dispatch_mutex);
+        return FALSE;
+    }
+
+    // The last handler can be removed from the callback.
+    atomic_fetch_add(&signal->ref_count, 1);
+    _zv_signal_dispatch_locked(signal, group);
+
+    pthread_mutex_unlock(&_zv_signal_mutex);
+    pthread_mutex_unlock(&_zv_signal_dispatch_mutex);
+
+    _zv_signal_release(signal);
+
+    return TRUE;
+}
+
+
+static int _zv_signal_create(struct zv_signal_s ** psignal)
+{
+    // The handler is registered once and never removed,
+    // it just passes the event on if there are no handlers.
+    // Called with the _zv_signal_mutex locked, it is safe because
+    // the handler is not registered yet, so can not wait for the mutex.
+    if (!_zv_signal_ctrl_handler_registered)
+    {
+        if (!SetConsoleCtrlHandler(&_zv_signal_ctrl_handler, TRUE))
+            return ZV_ERR_INVAL;
+        _zv_signal_ctrl_handler_registered = 1;
+    }
+
+    struct zv_signal_s * signal = malloc(sizeof(*signal));
+    if (signal == NULL)
+        return ZV_ERR_NOMEM;
+
+    signal->ref_count = 1;
+    pthread_cond_init(&signal->cond, NULL);
+    signal->group = NULL;
+    signal->dispatch.handler = NULL;
+    signal->dispatch.next_handler = NULL;
+    *psignal = signal;
+    return 0;
+}
+
+
+static void _zv_signal_stop()
+{
+}
+
+
+static int _zv_signal_group_install_locked(struct zv_signal_group_s * group)
+{
+    switch (group->signum)
+    {
+        case SIGINT:
+        case SIGBREAK:
+        case SIGTERM:
+            return 0;
+        default:
+            return -1;
+    }
+}
+
+
+static void _zv_signal_group_uninstall(struct zv_signal_group_s * group)
+{
+    (void) group;
+}
+
+#else /* defined(_WIN32) */
+
+static struct zv_signal_write_s
+{
+    int _Atomic lock;
+    int fd;
+}
+_zv_signal_write = { 0, -1 };
+
+
+static int _zv_signal_set_write_fd(int write_fd)
+{
+    while (atomic_exchange(&_zv_signal_write.lock, 1) == 1)
+        _zv_atomic_wait();
+    int prev_write_fd = _zv_signal_write.fd;
+    _zv_signal_write.fd = write_fd;
+    atomic_exchange(&_zv_signal_write.lock, 0);
+    return prev_write_fd;
+}
+
+
+static void _zv_signal_sys_handler(int signum)
+{
+    int saved_errno = errno;
+    while (atomic_exchange(&_zv_signal_write.lock, 1) == 1)
+        _zv_atomic_wait();
+    int write_fd = _zv_signal_write.fd;
+    if (write_fd >= 0)
+    {
+        unsigned char c = (unsigned char) signum;
+        ssize_t rc = write(write_fd, &c, sizeof(c));
+        (void) rc;
+    }
+    atomic_store(&_zv_signal_write.lock, 0);
+    errno = saved_errno;
 }
 
 
@@ -252,6 +374,34 @@ static int _zv_signal_create(struct zv_signal_s ** psignal)
 }
 
 
+static void _zv_signal_stop()
+{
+    // The worker thread will get EOF and exit
+    int write_fd = _zv_signal_set_write_fd(-1);
+    if (write_fd >= 0)
+        close(write_fd);
+    else
+        assert(0);
+}
+
+
+static int _zv_signal_group_install_locked(struct zv_signal_group_s * group)
+{
+    struct sigaction sa;
+    memset(&sa, 0, sizeof(sa));
+    sa.sa_handler = &_zv_signal_sys_handler;
+    sa.sa_flags = SA_RESTART;
+    return sigaction(group->signum, &sa, &group->old_sa);
+}
+
+
+static void _zv_signal_group_uninstall(struct zv_signal_group_s * group)
+{
+    sigaction(group->signum, &group->old_sa, NULL);
+}
+
+#endif /* defined(_WIN32) */
+
 int zv_signal_add_handler(int signum, void (*func)(void*), void * thunk)
 {
     if ((signum <= 0) || (signum >= NSIG) || (func == NULL))
@@ -319,7 +469,7 @@ int zv_signal_add_handler(int signum, void (*func)(void*), void * thunk)
     if (group == NULL)
     {
         if (_zv_signal == NULL)
-            _zv_signal_reset_write_fd();
+            _zv_signal_stop();
         else
             signal = NULL;
         pthread_mutex_unlock(&_zv_signal_mutex);
@@ -341,11 +491,7 @@ int zv_signal_add_handler(int signum, void (*func)(void*), void * thunk)
     group->handler = handler;
     signal->group = group;
 
-    struct sigaction sa;
-    memset(&sa, 0, sizeof(sa));
-    sa.sa_handler = &_zv_signal_sys_handler;
-    sa.sa_flags = SA_RESTART;
-    int rc = sigaction(signum, &sa, &group->old_sa);
+    int rc = _zv_signal_group_install_locked(group);
     if (rc == 0)
     {
         _zv_signal = signal;
@@ -356,7 +502,7 @@ int zv_signal_add_handler(int signum, void (*func)(void*), void * thunk)
     {
         signal->group = group->next;
         if (_zv_signal == NULL)
-            _zv_signal_reset_write_fd();
+            _zv_signal_stop();
         else
             signal = NULL;
         pthread_mutex_unlock(&_zv_signal_mutex);
@@ -436,13 +582,13 @@ int zv_signal_remove_handler(void (*func)(void*))
     {
         if (group->handler == NULL)
         {
-            sigaction(group->signum, &group->old_sa, NULL);
+            _zv_signal_group_uninstall(group);
             *group_link = group->next;
             free(group);
             if (signal->group == NULL)
             {
                 _zv_signal = NULL;
-                _zv_signal_reset_write_fd();
+                _zv_signal_stop();
                 pthread_mutex_unlock(&_zv_signal_mutex);
                 _zv_signal_release(signal);
                 return 0;
