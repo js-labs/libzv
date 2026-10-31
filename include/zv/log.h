@@ -98,4 +98,33 @@ static inline int zv_log_level_enabled(
 }
 #endif
 
+#if defined(__cplusplus)
+
+#include <sstream>
+
+/*
+ * The expr is an expression to stream into the std::ostream, like
+ *    ZVXX_LOG_ERROR(layer, "failed: " << err);
+ * Operators with a lower precedence than << need parentheses.
+ */
+#define ZVXX_LOG(layer, level, expr) \
+    do { \
+        if (zv_log_level_enabled(&layer, level)) { \
+            std::ostringstream _zv_log_stream; \
+            _zv_log_stream << expr; \
+            zv_log_event_t * log_event = zv_log_event_create( \
+                &layer, level, __FILE__, __LINE__, "%s", _zv_log_stream.str().c_str()); \
+            zv_log(log_event); \
+        } \
+    } \
+    while (0)
+
+#define ZVXX_LOG_ERROR(layer, expr) ZVXX_LOG(layer, zv_log_level_error, expr)
+#define ZVXX_LOG_WARNING(layer, expr) ZVXX_LOG(layer, zv_log_level_warning, expr)
+#define ZVXX_LOG_INFO(layer, expr) ZVXX_LOG(layer, zv_log_level_info, expr)
+#define ZVXX_LOG_DEBUG(layer, expr) ZVXX_LOG(layer, zv_log_level_debug, expr)
+#define ZVXX_LOG_TRACE(layer, expr) ZVXX_LOG(layer, zv_log_level_trace, expr)
+
+#endif /* defined(__cplusplus) */
+
 #endif /* !defined(ZV_LOG_H) */
