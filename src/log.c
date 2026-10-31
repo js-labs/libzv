@@ -283,11 +283,11 @@ zv_log_event_t * zv_log_event_create(
     log_event->log.line = line;
     log_event->log.text_size = len;
     char * ptr = (char*) (log_event + 1);
-    if (len > sizeof(buffer))
+    if (len >= sizeof(buffer))
     {
         va_list ap;
         va_start(ap, fmt);
-        vsnprintf(ptr, len, fmt, ap);
+        vsnprintf(ptr, len + 1, fmt, ap);
         va_end(ap);
     }
     else
