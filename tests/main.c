@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include "zv/acceptor.h"
 #include "zv/connector.h"
 #include "zv/he_connector.h"
@@ -22,6 +23,9 @@ int dns_resolver1();
 int he_connector1();
 int ipv6();
 int signal1();
+#if defined(_WIN32)
+int signal1_child();
+#endif
 int stream_defragger1();
 int timer_mgr_test1();
 int timer_mgr_test2();
@@ -68,6 +72,10 @@ void run_test(int * failed_tests, const char * name, int (*test_func)())
 int main(int argc, const char * argv[])
 {
 #if defined(_WIN32)
+    // signal1 test starts itself as a child process
+    if ((argc > 1) && (strcmp(argv[1], "signal1-child") == 0))
+        return signal1_child();
+
     if (wsa_init() != 0)
     {
         fprintf(stderr, "wsa_init() failed\n");

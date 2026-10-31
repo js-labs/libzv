@@ -129,7 +129,6 @@ if(BUILD_TESTS)
         tests/helpers.c
         tests/ipv6.c
         tests/main.c
-        tests/signal1.c
         tests/stream_defragger1.c
         tests/timer_mgr_test1.c
         tests/timer_mgr_test2.c
@@ -137,6 +136,12 @@ if(BUILD_TESTS)
         tests/timer_mgr_test4.c
         tests/timer_mgr_test5.c
     )
+
+    if(WIN32)
+        list(APPEND TEST_SRCS tests/signal1_win.c)
+    else()
+        list(APPEND TEST_SRCS tests/signal1_posix.c)
+    endif()
 
     set(BENCHMARK_SRCS
         tests/benchmark-tcp_broadcast.c
