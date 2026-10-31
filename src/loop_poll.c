@@ -238,6 +238,8 @@ static void _zv_loop_poll_run(struct zv_loop_s * loop)
 #else
         const int timeout = (readers > 0) ? 0 : -1;
         int rc = poll(pollfd_array.buffer, pollfd_array.size, timeout);
+        if ((rc < 0) && (errno == EINTR))
+            continue;
 #endif
 
         for (size_t idx=1; idx<pollfd_array.size;)
